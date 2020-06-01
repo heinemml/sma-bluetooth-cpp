@@ -18,6 +18,8 @@
 #ifndef H_SMASTRUCT
 #define H_SMASTRUCT
 
+#include <time.h>
+
 #define DATELENGTH 18
 
 typedef struct {

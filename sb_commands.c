@@ -1,3 +1,8 @@
+#define _XOPEN_SOURCE  // needed for strptime
+#define _GNU_SOURCE    // needed for getline
+
+#include "sb_commands.h"
+
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/rfcomm.h>
 #include <errno.h>
@@ -6,16 +11,11 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "sma_mysql.h"
 #include "sma_struct.h"
-
-extern unsigned char *ReadStream(ConfType *, FlagType *, ReadRecordType *, int *, unsigned char *, int *, unsigned char *, int *, unsigned char *, int, int *, int *);
-extern char *return_xml_data(ConfType *, int);
-extern long ConvertStreamtoLong(unsigned char *, int, unsigned long *);
-extern float ConvertStreamtoFloat(unsigned char *, int, float *);
-extern char *ConvertStreamtoString(unsigned char *, int);
-extern unsigned char conv(char *);
+#include "smatool.h"
 
 int ConnectSocket(ConfType *conf)
 {
@@ -203,7 +203,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
             do {
                 if (already_read == 0)
                     rr = 0;
-                if ((already_read == 0) && (read_bluetooth(conf, flag, &readRecord, s, &rr, &received, cc, last_sent, &terminated) != 0)) {
+                if ((already_read == 0) && (read_bluetooth(conf, flag, &readRecord, s, &rr, received, cc, last_sent, &terminated) != 0)) {
                     already_read = 0;
                     found = 0;
                     strcpy(lineread, "");
@@ -238,7 +238,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
         }
         if (!strcmp(lineread, "S")) {  //See if line is something we need to send
             //Empty the receive data ready for new command
-            while (((*linenum) > 22) && (empty_read_bluetooth(conf, flag, &readRecord, s, &rr, &received, cc, last_sent, &terminated) >= 0))
+            while (((*linenum) > 22) && (empty_read_bluetooth(conf, flag, &readRecord, s, &rr, received, cc, last_sent, &terminated) >= 0))
                 ;
             if (flag->debug == 1) printf("[%d] %s Sending\n", (*linenum), debugdate());
             cc = 0;
@@ -630,7 +630,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
             if (readRecord.Status[0] == 0xe0) {
                 if (flag->debug == 1) printf("\nThere is no data currently available %s\n", debugdate());
                 // Read the rest of the records
-                while (read_bluetooth(conf, flag, &readRecord, s, &rr, &received, cc, last_sent, &terminated) == 0)
+                while (read_bluetooth(conf, flag, &readRecord, s, &rr, received, cc, last_sent, &terminated) == 0)
                     ;
             } else {
                 if (flag->debug == 1) printf("[%d] %s Extracting\n", (*linenum), debugdate());
@@ -1037,8 +1037,11 @@ int OpenInverter(ConfType *conf, FlagType *flag, UnitType **unit, int *s, ArchDa
         perror("Can't open conf file");
         return -1;
     }
+
     if (InverterCommand("init", conf, flag, unit, s, fp, archdatalist, archdatalen, livedatalist, livedatalen) == (char *)NULL)
-        close(fp);
+        perror("Inverter Command failed");
+
+    fclose(fp);
 
     return (0);
 }

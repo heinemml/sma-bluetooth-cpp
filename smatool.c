@@ -34,7 +34,9 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "almanac.h"
 #include "repost.h"
+#include "sb_commands.h"
 #include "sma_mysql.h"
 
 /*
@@ -618,6 +620,7 @@ int empty_read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRec
     memset(received, 0, 1024);
     return 0;
 }
+
 int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, int *s, int *rr, unsigned char *received, int cc, unsigned char *last_sent, int *terminated)
 {
     int bytes_read, i, j, last_decoded;
@@ -1103,7 +1106,7 @@ int ConvertStreamtoInt(unsigned char *stream, int length, int *value)
     return (*value);
 }
 
-//Convert a recieved string to a value
+//Convert a received string to a value
 time_t ConvertStreamtoTime(unsigned char *stream, int length, time_t *value, int *day, int *month, int *year, int *hour, int *minute, int *second)
 {
     int i, nullvalue;
@@ -1700,11 +1703,11 @@ int main(int argc, char **argv)
     // Location based information to avoid quering Inverter in the dark
     if ((flag.location == 1) && (flag.mysql == 1)) {
         if (flag.debug == 1) printf("Before todays Almanac\n");
-        if (!todays_almanac(&conf)) {
-            sprintf(sunrise_time, "%s", sunrise(&conf));
-            sprintf(sunset_time, "%s", sunset(&conf));
+        if (!todays_almanac(&conf, flag.debug)) {
+            sprintf(sunrise_time, "%s", sunrise(&conf, flag.debug));
+            sprintf(sunset_time, "%s", sunset(&conf, flag.debug));
             if (flag.verbose == 1) printf("sunrise=%s sunset=%s\n", sunrise_time, sunset_time);
-            update_almanac(&conf, sunrise_time, sunset_time);
+            update_almanac(&conf, sunrise_time, sunset_time, flag.debug);
         }
     }
     if (flag.mysql == 1) {
@@ -1720,7 +1723,7 @@ int main(int argc, char **argv)
     if ((flag.daterange == 1) && ((flag.location = 0) || (flag.mysql == 0) || no_dark == 1 || is_light(&conf, &flag))) {
         if (flag.debug == 1) printf("Address %s\n", conf.BTAddress);
         //Connect to Inverter
-        if ((s = ConnectSocket(&conf, &flag)) < 0)
+        if ((s = ConnectSocket(&conf)) < 0)
             exit(-1);
 
         if (flag.file == 1)

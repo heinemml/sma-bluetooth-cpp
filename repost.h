@@ -16,7 +16,7 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
 #ifndef H_SMASTRUCT
-    #include "sma_struct.h"
+#include "sma_struct.h"
 #endif
 
-extern int sma_repost( ConfType * );
+extern int sma_repost(ConfType*);

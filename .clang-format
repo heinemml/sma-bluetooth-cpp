@@ -7,3 +7,5 @@ AccessModifierOffset: -4
 Cpp11BracedListStyle: true
 SpaceBeforeCpp11BracedList: false
 BreakBeforeBraces: Linux
+KeepEmptyLinesAtTheStartOfBlocks: true
+AllowShortBlocksOnASingleLine: Always

@@ -61,7 +61,7 @@ char *sunrise(ConfType *conf, int debug)
         localOffset -= 24;
     if (debug == 1) printf("localOffset=%f\n", localOffset);
     lngHour = longitude / 15;
-    if (debug == 1) printf("long=%f lngHour=%d\n", longitude, lngHour);
+    if (debug == 1) printf("long=%f lngHour=%f\n", longitude, lngHour);
     t = loctime->tm_yday + ((6 - lngHour) / 24);
     //Calculate the Sun's mean anomaly
     M = (0.9856 * t) - 3.289;
@@ -113,7 +113,7 @@ char *sunrise(ConfType *conf, int debug)
     return returntime;
 }
 
-char *sunset(ConfType *conf, int debug)
+char *sunset(ConfType *conf)
 {
     //adapted from http://williams.best.vwh.net/sunrise_sunset_algorithm.htm
     time_t curtime;
@@ -171,11 +171,9 @@ char *sunset(ConfType *conf, int debug)
     //calculate the Sun's local hour angle
     cosH = (cos((pi / 180) * zenith) - (sinDec * sin((pi / 180) * latitude))) / (cosDec * cos((pi / 180) * latitude));
 
-    if (cosH > 1)
-        ;
+    if (cosH > 1) {};
     //the sun never rises on this location (on the specified date)
-    if (cosH < -1)
-        ;
+    if (cosH < -1) {};
     //the sun never sets on this location (on the specified date)
     //finish calculating H and convert into hours
     H = (180 / pi) * acos(cosH);

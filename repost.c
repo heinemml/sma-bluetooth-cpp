@@ -40,7 +40,7 @@ size_t write_data(void *ptr, size_t size, size_t nmemb, void *stream)
     return written;
 }
 
-int sma_repost(ConfType *conf, FlagType *flag)
+void sma_repost(ConfType *conf, FlagType *flag)
 {
     FILE *fp;
     CURL *curl;
@@ -48,16 +48,15 @@ int sma_repost(ConfType *conf, FlagType *flag)
     char buf[1024], buf1[400];
     char SQLQUERY[1000];
     char compurl[400];
-    int ret, update_data;
+    int update_data;
     MYSQL_ROW row;
 
-    float dtotal, starttotal;
+    float dtotal;
     float power;
 
     /* Connect to database */
     OpenMySqlDatabase(conf->MySqlHost, conf->MySqlUser, conf->MySqlPwd, conf->MySqlDatabase);
     //Get Start of day value
-    starttotal = 0;
     printf("SELECT DATE_FORMAT( dt1.DateTime, \"%%Y%%m%%d\" ), round((dt1.ETotalToday*1000-dt2.ETotalToday*1000),0) FROM DayData as dt1 join DayData as dt2 on dt2.DateTime = DATE_SUB( dt1.DateTime, interval 1 day ) WHERE dt1.DateTime LIKE \"%%-%%-%% 23:55:00\" ' ORDER BY dt1.DateTime DESC");
     sprintf(SQLQUERY, "SELECT DATE_FORMAT( dt1.DateTime, \"%%Y%%m%%d\" ), round((dt1.ETotalToday*1000-dt2.ETotalToday*1000),0) FROM DayData as dt1 join DayData as dt2 on dt2.DateTime = DATE_SUB( dt1.DateTime, interval 1 day ) WHERE dt1.DateTime LIKE \"%%-%%-%% 23:55:00\" ORDER BY dt1.DateTime DESC");
     if (flag->debug == 1) printf("%s\n", SQLQUERY);
@@ -69,7 +68,7 @@ int sma_repost(ConfType *conf, FlagType *flag)
         update_data = 0;
         dtotal = atof(row[1]);
         sleep(2);  //pvoutput limits 1 second output
-        ret = sprintf(compurl, "http://pvoutput.org/service/r1/getstatistic.jsp?df=%s&dt=%s&key=%s&sid=%s", row[0], row[0], conf->PVOutputKey, conf->PVOutputSid);
+        sprintf(compurl, "http://pvoutput.org/service/r1/getstatistic.jsp?df=%s&dt=%s&key=%s&sid=%s", row[0], row[0], conf->PVOutputKey, conf->PVOutputSid);
         curl = curl_easy_init();
         if (curl) {
             curl_easy_setopt(curl, CURLOPT_URL, compurl);
@@ -108,7 +107,7 @@ int sma_repost(ConfType *conf, FlagType *flag)
             if (update_data == 1) {
                 curl = curl_easy_init();
                 if (curl) {
-                    ret = sprintf(compurl, "http://pvoutput.org/service/r2/addoutput.jsp?d=%s&g=%f&key=%s&sid=%s", row[0], dtotal, conf->PVOutputKey, conf->PVOutputSid);
+                    sprintf(compurl, "http://pvoutput.org/service/r2/addoutput.jsp?d=%s&g=%f&key=%s&sid=%s", row[0], dtotal, conf->PVOutputKey, conf->PVOutputSid);
                     if (flag->debug == 1) printf("url = %s\n", compurl);
                     curl_easy_setopt(curl, CURLOPT_URL, compurl);
                     curl_easy_setopt(curl, CURLOPT_FAILONERROR, compurl);

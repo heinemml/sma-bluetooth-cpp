@@ -3,6 +3,8 @@ project(sma_bluetooth)
 
 set(CMAKE_CXX_STANDARD 17)
 
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -pedantic")
+
 include_directories(.)
 
 find_package(LibXml2 REQUIRED)

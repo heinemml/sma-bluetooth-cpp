@@ -12,7 +12,6 @@
 int ConnectSocket(ConfType *conf);
 int GetLine(const char *command, FILE *fp);
 
-int OpenInverter(ConfType *conf, FlagType *flag, UnitType **unit, int *s, ArchDataType **archdatalist, int *archdatalen, LiveDataType **livedatalist, int *livedatalen);
-char *InverterCommand(const char *command, ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE *fp, ArchDataType **archdatalist, int *archdatalen, LiveDataType **livedatalist, int *livedatalen);
+void InverterCommand(const char *command, ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE *fp, ArchDataType **archdatalist, int *archdatalen, LiveDataType **livedatalist, int *livedatalen);
 
 #endif  //SMA_BLUETOOTH_SB_COMMANDS_H

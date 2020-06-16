@@ -20,33 +20,32 @@
 int ConnectSocket(ConfType *conf)
 {
     struct sockaddr_rc addr = {0};
-    int i;
-    int s = 0;
+    int sock = 0;
     int status = -1;  //connection status
 
     //Try for a few connects
-    for (i = 1; i < 20; i++) {
+    for (int i = 1; i < 20; i++) {
         // allocate a socket
-        if (((s) = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM)) > 0) {
+        if ((sock = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM)) > 0) {
             // set the connection parameters (who to connect to)
             addr.rc_family = AF_BLUETOOTH;
             addr.rc_channel = (uint8_t)1;
             str2ba(conf->BTAddress, &addr.rc_bdaddr);
 
             // connect to server
-            status = connect((s), (struct sockaddr *)&addr, sizeof(addr));
+            status = connect(sock, (struct sockaddr *)&addr, sizeof(addr));
             if (status < 0) {
                 printf("Error connecting to %s\n", conf->BTAddress);
-                close((s));
+                close(sock);
             } else
                 //conected
                 break;
         } else {
             //Can't open socket try again
-            close((s));
+            close(sock);
         }
     }
-    return (s);
+    return sock;
 }
 /*
  * Update internal running list with live data for later processing
@@ -188,7 +187,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                         cc++;
                 }
 
-            } while (strcmp(lineread, "$END"));
+            } while (strcmp(lineread, "$END") != 0);
             if (flag->debug == 1) {
                 printf("[%d] %s waiting for: ", (*linenum), debugdate());
                 for (i = 0; i < cc; i++) printf("%02x ", fl[i]);
@@ -355,7 +354,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                         if (flag->daterange == 1) {
                             if (strptime(conf->dateto, "%Y-%m-%d %H:%M:%S", &tm) == 0) {
                                 if (flag->debug == 1) printf("dateto %s\n", conf->dateto);
-                                printf("Time Coversion Error\n");
+                                printf("Time Conversion Error\n");
                                 error = 1;
                                 exit(-1);
                             }
@@ -508,7 +507,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                         cc++;
                 }
 
-            } while (strcmp(lineread, "$END"));
+            } while (strcmp(lineread, "$END") != 0);
             if (flag->debug == 1) {
                 int last_decoded;
 
@@ -1002,50 +1001,25 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
  * Run a command on an inverter
  *
  */
-char *InverterCommand(const char *command, ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE *fp, ArchDataType **archdatalist, int *archdatalen, LiveDataType **livedatalist, int *livedatalen)
+void InverterCommand(const char *command, ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE *fp, ArchDataType **archdatalist, int *archdatalen, LiveDataType **livedatalist, int *livedatalen)
 {
-    int linenum;
-    char *returnValues = NULL;
-
     if (fseek(fp, 0L, 0) < 0)
         printf("\nError");
+
+    int linenum;
     if ((linenum = GetLine(command, fp)) > 0) {
         if (ProcessCommand(conf, flag, unit, s, fp, &linenum, archdatalist, archdatalen, livedatalist, livedatalen) < 0) {
             printf("\nError need to do something");
             getchar();
         }
     } else {
-        //Command not found in config
-        printf("\nCommand %s not found", command);
+        printf("\nCommand %s not found in '.in' file", command);
     }
-    return (returnValues);
-}
-
-int OpenInverter(ConfType *conf, FlagType *flag, UnitType **unit, int *s, ArchDataType **archdatalist, int *archdatalen, LiveDataType **livedatalist, int *livedatalen)
-{
-    FILE *fp;
-
-    if (flag->file == 1)
-        fp = fopen(conf->File, "r");
-    else
-        fp = fopen("/etc/sma.in", "r");
-    if (fp == NULL) {
-        //Can't open file
-        perror("Can't open conf file");
-        return -1;
-    }
-
-    if (InverterCommand("init", conf, flag, unit, s, fp, archdatalist, archdatalen, livedatalist, livedatalen) == (char *)NULL)
-        perror("Inverter Command failed");
-
-    fclose(fp);
-
-    return (0);
 }
 
 /*
  * Get Line number of the command required
- * reurn line number on success 0 on failure
+ * return line number on success 0 on failure
  */
 int GetLine(const char *command, FILE *fp)
 {
@@ -1066,7 +1040,11 @@ int GetLine(const char *command, FILE *fp)
             }
         }
     }
-    if (!found) linenum = 0;
+
     free(line);
+
+    if (!found)
+        return 0;
+
     return linenum;
 }

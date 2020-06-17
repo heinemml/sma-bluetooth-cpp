@@ -875,18 +875,15 @@ unsigned char *get_timezone_in_seconds(FlagType *flag, unsigned char *tzhex)
 int auto_set_dates(ConfType *conf, FlagType *flag)
 /*  If there are no dates set - get last updated date and go from there to NOW */
 {
-    MYSQL_ROW row;
-    char SQLQUERY[200];
-    time_t curtime;
-    int day, month, year, hour, minute;
-    struct tm *loctime;
-
     if (flag->mysql == 1) {
         OpenMySqlDatabase(conf->MySqlHost, conf->MySqlUser, conf->MySqlPwd, conf->MySqlDatabase);
         //Get last updated value
+        char SQLQUERY[200];
         sprintf(SQLQUERY, "SELECT DATE_FORMAT( DateTime, \"%%Y-%%m-%%d %%H:%%i:%%S\" ) FROM DayData WHERE 1 ORDER BY DateTime DESC LIMIT 1");
         if (flag->debug == 1) printf("%s\n", SQLQUERY);
         DoQuery(SQLQUERY);
+
+        MYSQL_ROW row;
         if ((row = mysql_fetch_row(res)))  //if there is a result, update the row
         {
             strcpy(conf->datefrom, row[0]);
@@ -894,19 +891,23 @@ int auto_set_dates(ConfType *conf, FlagType *flag)
         mysql_free_result(res);
         mysql_close(conn);
     }
-    if (strlen(conf->datefrom) == 0)
-        strcpy(conf->datefrom, "2000-01-01 00:00:00");
 
-    curtime = time(NULL);  //get time in seconds since epoch (1/1/1970)
-    loctime = localtime(&curtime);
-    day = loctime->tm_mday;
-    month = loctime->tm_mon + 1;
-    year = loctime->tm_year + 1900;
-    hour = loctime->tm_hour;
-    minute = loctime->tm_min;
+    time_t curtime = time(NULL);  //get time in seconds since epoch (1/1/1970)
+    struct tm *loctime = localtime(&curtime);
+    int day = loctime->tm_mday;
+    int month = loctime->tm_mon + 1;
+    int year = loctime->tm_year + 1900;
+    int hour = loctime->tm_hour;
+    int minute = loctime->tm_min;
     sprintf(conf->dateto, "%04d-%02d-%02d %02d:%02d:00", year, month, day, hour, minute);
+
+    if (strlen(conf->datefrom) == 0)
+        sprintf(conf->datefrom, "%04d-%02d-%02d 00:00:00", year, month, day);
+
     flag->daterange = 1;
-    if (flag->verbose == 1) printf("Auto set dates from %s to %s\n", conf->datefrom, conf->dateto);
+    //if (flag->verbose == 1)
+    printf("Auto set dates from %s to %s\n", conf->datefrom, conf->dateto);
+
     return 1;
 }
 
@@ -1642,12 +1643,14 @@ int main(int argc, char **argv)
         if (flag.debug == 1) printf("Before Check Schema\n");
         if (check_schema(&conf, &flag, SCHEMA) != 1)
             exit(-1);
+    }
 
-        if (flag.daterange == 0) {  //auto set the dates
-            if (flag.debug == 1) printf("auto_set_dates\n");
-            auto_set_dates(&conf, &flag);
-        }
-    } else if (flag.verbose == 1)
+    if (flag.daterange == 0) {  //auto set the dates
+        if (flag.debug == 1) printf("auto_set_dates\n");
+        auto_set_dates(&conf, &flag);
+    }
+
+    if (flag.verbose == 1)
         printf("QUERY RANGE    from %s to %s\n", conf.datefrom, conf.dateto);
 
     if ((flag.daterange == 1) && ((flag.location = 0) || (flag.mysql == 0) || no_dark == 1 || is_light(&conf, &flag))) {

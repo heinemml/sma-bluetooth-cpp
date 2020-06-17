@@ -19,33 +19,30 @@
 
 int ConnectSocket(ConfType *conf)
 {
-    struct sockaddr_rc addr = {0};
-    int sock = 0;
-    int status = -1;  //connection status
-
     //Try for a few connects
     for (int i = 1; i < 20; i++) {
         // allocate a socket
-        if ((sock = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM)) > 0) {
+        int sock = 0;
+        if ((sock = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM)) >= 0) {
             // set the connection parameters (who to connect to)
+            struct sockaddr_rc addr = {0};
             addr.rc_family = AF_BLUETOOTH;
             addr.rc_channel = (uint8_t)1;
             str2ba(conf->BTAddress, &addr.rc_bdaddr);
 
             // connect to server
-            status = connect(sock, (struct sockaddr *)&addr, sizeof(addr));
+            int status = connect(sock, (struct sockaddr *)&addr, sizeof(addr));
             if (status < 0) {
                 printf("Error connecting to %s\n", conf->BTAddress);
                 close(sock);
-            } else
+                sock = 0;
+            } else {
                 //conected
-                break;
-        } else {
-            //Can't open socket try again
-            close(sock);
+                return sock;
+            }
         }
     }
-    return sock;
+    return -1;
 }
 /*
  * Update internal running list with live data for later processing

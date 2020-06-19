@@ -17,6 +17,6 @@ int empty_read_bluetooth(FlagType *flag, ReadRecordType *readRecord, int *s, int
 int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, int *s, int *rr, unsigned char *received, int cc, unsigned char *last_sent, int *terminated);
 void tryfcs16(FlagType *flag, unsigned char *cp, int len, unsigned char *fl, int *cc);
 void add_escapes(unsigned char *cp, int *len);
-void fix_length_send(FlagType *flag, unsigned char *cp, int *len);
+void fix_length_send(FlagType *flag, unsigned char *cp, int len);
 
 #endif  //SMA_BLUETOOTH_SMATOOL_H

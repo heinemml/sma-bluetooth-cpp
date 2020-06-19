@@ -203,37 +203,7 @@ void fix_length_send(FlagType *flag, unsigned char *cp, int len)
         cp[1] = len + 1;
 
         cp[3] = cp[0] ^ cp[1] ^ cp[2];
-        /*
-      switch( cp[1] ) {
-        case 0x3a: cp[3]=0x44; break;
-        case 0x3b: cp[3]=0x43; break;
-        case 0x3c: cp[3]=0x42; break;
-        case 0x3d: cp[3]=0x41; break;
-        case 0x3e: cp[3]=0x40; break;
-        case 0x3f: cp[3]=0x41; break;
-        case 0x40: cp[3]=0x3e; break;
-        case 0x41: cp[3]=0x3f; break;
-        case 0x42: cp[3]=0x3c; break;
-        case 0x52: cp[3]=0x2c; break;
-        case 0x53: cp[3]=0x2b; break;
-        case 0x54: cp[3]=0x2a; break;
-        case 0x55: cp[3]=0x29; break;
-        case 0x56: cp[3]=0x28; break;
-        case 0x57: cp[3]=0x27; break;
-        case 0x58: cp[3]=0x26; break;
-        case 0x59: cp[3]=0x25; break;
-        case 0x5a: cp[3]=0x24; break;
-        case 0x5b: cp[3]=0x23; break;
-        case 0x5c: cp[3]=0x22; break;
-        case 0x5d: cp[3]=0x23; break;
-        case 0x5e: cp[3]=0x20; break;
-        case 0x5f: cp[3]=0x21; break;
-        case 0x60: cp[3]=0x1e; break;
-        case 0x61: cp[3]=0x1f; break;
-        case 0x62: cp[3]=0x1e; break;
-        default: printf( "NO CONVERSION!" );getchar();break;
-      }
-      */
+
         if (flag->debug == 1)
             printf("new sum=%x\n", cp[1] + cp[3]);
     }
@@ -899,10 +869,10 @@ int auto_set_dates(ConfType *conf, FlagType *flag)
     int year = loctime->tm_year + 1900;
     int hour = loctime->tm_hour;
     int minute = loctime->tm_min;
-    sprintf(conf->dateto, "%04d-%02d-%02d %02d:%02d:00", year, month, day, hour, minute);
+    snprintf(conf->dateto, sizeof(conf->dateto), "%04d-%02d-%02d %02d:%02d:00", year, month, day, hour, minute);
 
     if (strlen(conf->datefrom) == 0)
-        sprintf(conf->datefrom, "%04d-%02d-%02d 00:00:00", year, month, day);
+        snprintf(conf->datefrom, sizeof(conf->datefrom), "%04d-%02d-%02d 00:00:00", year, month, day);
 
     flag->daterange = 1;
     //if (flag->verbose == 1)
@@ -1218,7 +1188,7 @@ void InitConfig(ConfType *conf)
     conf->bt_timeout = 30;
     strcpy(conf->Password, "0000");
     strcpy(conf->File, "sma.in");
-    strcpy(conf->Xml, "/usr/local/bin/smatool.xml");
+    strcpy(conf->Xml, "smatool.xml");
     conf->latitude_f = 999;
     conf->longitude_f = 999;
     strcpy(conf->MySqlHost, "localhost");
@@ -1270,7 +1240,8 @@ int GetConfig(ConfType *conf, FlagType *flag)
             if (line[0] != '#') {
                 strcpy(value, "");  //Null out value
                 sscanf(line, "%s %s", variable, value);
-                if (flag->debug == 1) printf("variable=%s value=%s\n", variable, value);
+                if (flag->debug == 1)
+                    printf("%s='%s'\n", variable, value);
                 if (value[0] != '\0') {
                     if (strcmp(variable, "BTAddress") == 0)
                         strcpy(conf->BTAddress, value);
@@ -1348,7 +1319,7 @@ getnodeset(xmlDocPtr doc, xmlChar *xpath)
 void setup_xml_xpath(xmlChar *xpath, char *docname, int index)
 {
     sprintf((char *)xpath, "//Datamap/Map[@index='%d']", index);
-    sprintf(docname, "%s", "/usr/local/bin/smatool.xml");
+    sprintf(docname, "%s", "smatool.xml");
 }
 
 char *return_xml_data(int index)

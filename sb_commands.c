@@ -301,7 +301,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                     case 4:  //$crc
                         tryfcs16(flag, fl + 19, cc - 19, fl, &cc);
                         add_escapes(fl, &cc);
-                        fix_length_send(flag, fl, &cc);
+                        fix_length_send(flag, fl, cc);
                         break;
 
                     case 12:  // $TIMESTRING
@@ -1002,6 +1002,10 @@ void InverterCommand(const char *command, ConfType *conf, FlagType *flag, UnitTy
 {
     if (fseek(fp, 0L, 0) < 0)
         printf("\nError");
+
+    printf("================\n");
+    printf("Command: %s\n", command);
+    printf("================\n");
 
     int linenum;
     if ((linenum = GetLine(command, fp)) > 0) {

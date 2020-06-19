@@ -20,7 +20,7 @@
 
 #include <time.h>
 
-#define DATELENGTH 18
+#define DATELENGTH 20
 
 typedef struct {
     unsigned int key1;

@@ -1058,21 +1058,22 @@ InitReturnKeys(ConfType *conf)
 }
 
 //Convert a recieved string to a value
-int ConvertStreamtoInt(unsigned char *stream, int length, int *value)
+int ConvertStreamtoInt(unsigned char *stream, int length)
 {
     int i, nullvalue;
 
-    (*value) = 0;
+    int value = 0;
     nullvalue = 1;
 
     for (i = 0; i < length; i++) {
         if (stream[i] != 0xff)  //check if all ffs which is a null value
             nullvalue = 0;
-        (*value) = (*value) + stream[i] * pow(256, i);
+        value = value + stream[i] * pow(256, i);
     }
     if (nullvalue == 1)
-        (*value) = 0;  //Asigning null to 0 at this stage unless it breaks something
-    return (*value);
+        value = 0;  //Asigning null to 0 at this stage unless it breaks something
+
+    return value;
 }
 
 //Convert a received string to a value
@@ -1140,7 +1141,7 @@ ReadStream(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, int *s, u
     int finished_record;
     int i, j = 0;
 
-    (*togo) = ConvertStreamtoInt(stream + 43, 2, togo);
+    (*togo) = ConvertStreamtoInt(stream + 43, 2);
     if (flag->debug == 1) printf("togo=%d\n", (*togo));
     i = 59;  //Initial position of data stream
     (*datalen) = 0;
@@ -1353,7 +1354,7 @@ char *return_xml_data(int index)
         }
         xmlXPathFreeObject(result);
     } else
-        printf("\nfailed to getnodeset");
+        printf("\nfailed to getnodeset with xpath '%s'\n", xpath);
     xmlFreeDoc(doc);
     xmlCleanupParser();
 

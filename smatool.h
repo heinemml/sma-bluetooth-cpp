@@ -4,12 +4,12 @@
 #include <time.h>
 
 unsigned char *ReadStream(ConfType *, FlagType *, ReadRecordType *, int *, unsigned char *, int *, unsigned char *, int *, unsigned char *, int, int *, int *);
-char *return_xml_data(ConfType *, int);
+char *return_xml_data(int index);
 long ConvertStreamtoLong(unsigned char *, int, unsigned long *);
 float ConvertStreamtoFloat(unsigned char *, int, float *);
 char *ConvertStreamtoString(unsigned char *, int);
 time_t ConvertStreamtoTime(unsigned char *stream, int length, time_t *value, int *day, int *month, int *year, int *hour, int *minute, int *second);
-int ConvertStreamtoInt(unsigned char *stream, int length, int *value);
+int ConvertStreamtoInt(unsigned char *stream, int length);
 unsigned char conv(char *);
 char *debugdate();
 int select_str(char *s);

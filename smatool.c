@@ -19,8 +19,6 @@
 
 #define _XOPEN_SOURCE /* glibc needs this */
 #include <assert.h>
-#include <bluetooth/bluetooth.h>
-#include <bluetooth/rfcomm.h>
 #include <curl/curl.h>
 #include <errno.h>
 #include <libxml2/libxml/parser.h>
@@ -85,9 +83,6 @@ char *accepted_strings[] = {
     "$MYSERIAL",
     "$LOGIN"};
 
-int cc;
-unsigned char fl[1024] = {0};
-
 static u16 fcstab[256] = {
     0x0000, 0x1189, 0x2312, 0x329b, 0x4624, 0x57ad, 0x6536, 0x74bf,
     0x8c48, 0x9dc1, 0xaf5a, 0xbed3, 0xca6c, 0xdbe5, 0xe97e, 0xf8f7,
@@ -138,31 +133,6 @@ u16 pppfcs16(u16 fcs, void *_cp, int len)
     while (len--)
         fcs = (fcs >> 8) ^ fcstab[(fcs ^ *cp++) & 0xff];
     return (fcs);
-}
-
-/*
- * Strip escapes (7D) as they aren't includes in fcs
- */
-void strip_escapes(unsigned char *cp, int *len)
-{
-    int i, j;
-
-    for (i = 0; i < (*len); i++) {
-        if (cp[i] == 0x7d) { /*Found escape character. Need to convert*/
-            cp[i] = cp[i + 1] ^ 0x20;
-            for (j = i + 1; j < (*len) - 1; j++) cp[j] = cp[j + 1];
-            (*len)--;
-        }
-    }
-}
-
-int quick_pow10(int n)
-{
-    static int pow10[10] = {
-        1, 10, 100, 1000, 10000,
-        100000, 1000000, 10000000, 100000000, 1000000000};
-
-    return pow10[n];
 }
 
 /*
@@ -247,7 +217,7 @@ void fix_length_received(FlagType *flag, unsigned char *received, int len)
 /*
  * How to use the fcs
  */
-void tryfcs16(FlagType *flag, unsigned char *cp, unsigned int len, unsigned char *fl, int *cc)
+void tryfcs16(FlagType *flag, unsigned char *cp, int len, unsigned char *fl, int *cc)
 {
     u16 trialfcs;
     unsigned int i;
@@ -613,8 +583,8 @@ int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, i
         getchar();
     }
 
-    if (flag->verbose == 1) printf("Reading bluetooth packett\n");
-    if (flag->verbose == 1) printf("socket=%d\n", (*s));
+    if (flag->verbose == 1) printf("Reading bluetooth packet\n");
+
     (*terminated) = 0;  // Tag to tell if string has 7e termination
     // first read the header to get the record length
     if (FD_ISSET((*s), &readfds)) {                          // did we receive anything within 5 seconds

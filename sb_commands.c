@@ -682,14 +682,11 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                             break;
 
                         case 7:  // extract 2nd address
-                            printf("\naddress=");
-                            for (i = 0; i < 6; i++) {
-                                printf("%02x ", received[26 + i]);
-                            }
                             for (i = 0; i < 6; i++) {
                                 conf->MyBTAddress[i] = received[26 + i];
                             }
-                            if (flag->debug == 1) printf("address 2 = %02x:%02x:%02x:%02x:%02x:%02x \n", conf->MyBTAddress[0], conf->MyBTAddress[1], conf->MyBTAddress[2], conf->MyBTAddress[3], conf->MyBTAddress[4], conf->MyBTAddress[5]);
+                            if (flag->debug == 1)
+                                printf("\nMyBTAddress = %02x:%02x:%02x:%02x:%02x:%02x \n", conf->MyBTAddress[5], conf->MyBTAddress[4], conf->MyBTAddress[3], conf->MyBTAddress[2], conf->MyBTAddress[1], conf->MyBTAddress[0]);
                             break;
 
                         case 12:  // extract time strings $TIMESTRING

@@ -1410,18 +1410,19 @@ int ReadCommandConfig(ConfType *conf, FlagType *flag, int argc, char **argv, int
     // these need validation checking at some stage TODO
     for (i = 1; i < argc; i++)  //Read through passed arguments
     {
-        if ((strcmp(argv[i], "-v") == 0) || (strcmp(argv[i], "--verbose") == 0))
+        if ((strcmp(argv[i], "-v") == 0) || (strcmp(argv[i], "--verbose") == 0)) {
             flag->verbose = 1;
-        else if ((strcmp(argv[i], "-d") == 0) || (strcmp(argv[i], "--debug") == 0))
+        } else if ((strcmp(argv[i], "-d") == 0) || (strcmp(argv[i], "--debug") == 0)) {
             flag->debug = 1;
-        else if ((strcmp(argv[i], "-c") == 0) || (strcmp(argv[i], "--config") == 0)) {
+            flag->verbose = 1;
+        } else if ((strcmp(argv[i], "-c") == 0) || (strcmp(argv[i], "--config") == 0)) {
             i++;
             if (i < argc) {
                 strcpy(conf->Config, argv[i]);
             }
-        } else if (strcmp(argv[i], "--test") == 0)
+        } else if (strcmp(argv[i], "--test") == 0) {
             flag->test = 1;
-        else if ((strcmp(argv[i], "-from") == 0) || (strcmp(argv[i], "--datefrom") == 0)) {
+        } else if ((strcmp(argv[i], "-from") == 0) || (strcmp(argv[i], "--datefrom") == 0)) {
             i++;
             if (i < argc) {
                 strcpy(conf->datefrom, argv[i]);
@@ -1454,10 +1455,9 @@ int ReadCommandConfig(ConfType *conf, FlagType *flag, int argc, char **argv, int
             if (i < argc) {
                 strcpy(conf->File, argv[i]);
             }
-        } else if ((strcmp(argv[i], "-n") == 0) || (strcmp(argv[i], "--nodark") == 0))
+        } else if ((strcmp(argv[i], "-n") == 0) || (strcmp(argv[i], "--nodark") == 0)) {
             (*no_dark) = 1;
-
-        else if ((strcmp(argv[i], "-lat") == 0) || (strcmp(argv[i], "--latitude") == 0)) {
+        } else if ((strcmp(argv[i], "-lat") == 0) || (strcmp(argv[i], "--latitude") == 0)) {
             i++;
             if (i < argc) {
                 conf->latitude_f = atof(argv[i]);
@@ -1505,11 +1505,11 @@ int ReadCommandConfig(ConfType *conf, FlagType *flag, int argc, char **argv, int
         } else if ((strcmp(argv[i], "-h") == 0) || (strcmp(argv[i], "--help") == 0)) {
             PrintHelp();
             return (-1);
-        } else if (strcmp(argv[i], "--INSTALL") == 0)
+        } else if (strcmp(argv[i], "--INSTALL") == 0) {
             (*install) = 1;
-        else if (strcmp(argv[i], "--UPDATE") == 0)
+        } else if (strcmp(argv[i], "--UPDATE") == 0) {
             (*update) = 1;
-        else {
+        } else {
             printf("Bad Syntax\n\n");
             for (i = 0; i < argc; i++)
                 printf("%s ", argv[i]);

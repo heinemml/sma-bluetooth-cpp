@@ -26,3 +26,6 @@ add_executable(sma_bluetooth
         )
 
 target_link_libraries(sma_bluetooth mysqlclient bluez mysql curl LibXml2::LibXml2)
+
+configure_file(sma.in.new ${CMAKE_CURRENT_BINARY_DIR}/sma.in COPYONLY)
+configure_file(smatool.xml ${CMAKE_CURRENT_BINARY_DIR}/smatool.xml COPYONLY)

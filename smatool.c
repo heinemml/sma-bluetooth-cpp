@@ -163,19 +163,15 @@ void add_escapes(unsigned char *cp, int *len)
 void fix_length_send(FlagType *flag, unsigned char *cp, int len)
 {
     if (flag->debug == 1)
-        printf("sum=%x\n", cp[1] + cp[3]);
+        printf("len=%x, checkbit %x, sum=%x\n", cp[1], cp[3], cp[1] + cp[3]);
     if ((cp[1] != len + 1)) {
-
-        if (flag->debug == 1) {
-            printf("  length change from %x to %x diff=%x \n", cp[1], len + 1, cp[1] + cp[3]);
-        }
         cp[3] = (cp[1] + cp[3]) - (len + 1);
         cp[1] = len + 1;
 
         cp[3] = cp[0] ^ cp[1] ^ cp[2];
 
         if (flag->debug == 1)
-            printf("new sum=%x\n", cp[1] + cp[3]);
+            printf("corrected len=%x, checkbit %x, sum=%x\n", cp[1], cp[3], cp[1] + cp[3]);
     }
 }
 
@@ -184,12 +180,9 @@ void fix_length_send(FlagType *flag, unsigned char *cp, int len)
  */
 void fix_length_received(FlagType *flag, unsigned char *received, int len)
 {
-    int sum;
-
     if (received[1] != len) {
-        sum = received[1] + received[3];
-        if (flag->debug == 1) printf("sum=%x", sum);
-        if (flag->debug == 1) printf("length change from %x to %x\n", received[1], len);
+        if (flag->debug == 1)
+            printf("length change from %x to %x\n", received[1], len);
 
         if ((received[3] != 0x13) && (received[3] != 0x14)) {
             received[1] = len;
@@ -207,7 +200,6 @@ void fix_length_received(FlagType *flag, unsigned char *received, int len)
                     received[3] = 0x14;
                     break;
                 default:
-                    received[3] = sum - received[1];
                     break;
             }
         }
@@ -220,14 +212,13 @@ void fix_length_received(FlagType *flag, unsigned char *received, int len)
 void tryfcs16(FlagType *flag, unsigned char *cp, int len, unsigned char *fl, int *cc)
 {
     u16 trialfcs;
-    unsigned int i;
     unsigned char stripped[1024] = {0};
 
     memcpy(stripped, cp, len);
     /* add on output */
     if (flag->debug == 2) {
         printf("String to calculate FCS\n");
-        for (i = 0; i < len; i++) printf("%02x ", cp[i]);
+        for (int i = 0; i < len; i++) printf("%02x ", cp[i]);
         printf("\n\n");
     }
     trialfcs = pppfcs16(PPPINITFCS16, stripped, len);
@@ -318,8 +309,11 @@ int check_send_error(FlagType *flag, int *s, int *rr, unsigned char *received, i
         memset(received, 0, 1024);
         return -1;
     }
-    if (FD_ISSET((*s), &readfds)) {                      // did we receive anything within 5 seconds
-        bytes_read = recv((*s), buf, header[1] - 3, 0);  //Read the length specified by header
+
+    uint16_t len = (uint16_t)header[1];
+
+    if (FD_ISSET((*s), &readfds)) {                             // did we receive anything within 5 seconds
+        bytes_read = recv((*s), buf, len - sizeof(header), 0);  //Read the length specified by header
     } else {
         if (flag->verbose == 1) printf("Timeout reading bluetooth socket\n");
         (*rr) = 0;
@@ -426,8 +420,11 @@ int empty_read_bluetooth(FlagType *flag, ReadRecordType *readRecord, int *s, int
         (*rr) = 0;
         return -1;
     }
-    if (FD_ISSET((*s), &readfds)) {                      // did we receive anything within 5 seconds
-        bytes_read = recv((*s), buf, header[1] - 3, 0);  //Read the length specified by header
+
+    uint16_t len = (uint16_t)header[1];
+
+    if (FD_ISSET((*s), &readfds)) {                             // did we receive anything within 5 seconds
+        bytes_read = recv((*s), buf, len - sizeof(header), 0);  //Read the length specified by header
     } else {
         memset(received, 0, 1024);
         (*rr) = 0;
@@ -435,37 +432,16 @@ int empty_read_bluetooth(FlagType *flag, ReadRecordType *readRecord, int *s, int
     }
     readRecord->Status[0] = 0;
     readRecord->Status[1] = 0;
+
     if (bytes_read > 0) {
         if (flag->debug == 1) {
-            /*
-           printf("\nReceiving\n");
-           printf( "    %08x: .. .. .. .. .. .. .. .. .. .. .. .. ", 0 );
-           j=12;
-           for( i=0; i<sizeof(header); i++ ) {
-              if( j%16== 0 )
-                 printf( "\n    %08x: ",j);
-              printf("%02x ",header[i]);
-              j++;
-           }
-	   for (i=0;i<bytes_read;i++) {
-              if( j%16== 0 )
-                 printf( "\n    %08x: ",j);
-              printf("%02x ",buf[i]);
-              j++;
-           }
-           printf(" rr=%d",(bytes_read+(*rr)));
-	   printf("\n\n");
-           */
             printf("\n-----------------------------------------------------------");
             printf("\nREAD:");
             //Start byte
             printf("\n7e ");
             j++;
             //Size and checkbit
-            printf("%02x ", header[1]);
-            printf("                      size:              %d", header[1]);
-            printf("\n   ");
-            printf("%02x ", header[2]);
+            printf("%02x %02x                 size:              %d", header[1], header[2], len);
             printf("\n   ");
             printf("%02x ", header[3]);
             printf("                      checkbit:          %d", header[3]);
@@ -601,8 +577,12 @@ int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, i
         memset(received, 0, 1024);
         return -1;
     }
-    if (FD_ISSET((*s), &readfds)) {                      // did we receive anything within 5 seconds
-        bytes_read = recv((*s), buf, header[1] - 3, 0);  //Read the length specified by header
+
+    uint16_t len = (uint16_t)header[1];
+
+    if (FD_ISSET((*s), &readfds)) {                             // did we receive anything within 5 seconds
+        bytes_read = recv((*s), buf, len - sizeof(header), 0);  //Read the length specified by header
+        printf("length defined by header: %d, actually read: %d\n", len, bytes_read);
     } else {
         if (flag->verbose == 1) printf("Timeout reading bluetooth socket\n");
         (*rr) = 0;
@@ -619,10 +599,8 @@ int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, i
             printf("\n7e ");
             j++;
             //Size and checkbit
-            printf("%02x ", header[1]);
-            printf("                      size:              %d", header[1]);
-            printf("\n   ");
-            printf("%02x ", header[2]);
+            printf("%02x %02x ", header[1], header[2]);
+            printf("                   size:              %d", len);
             printf("\n   ");
             printf("%02x ", header[3]);
             printf("                      checkbit:          %d", header[3]);
@@ -1350,7 +1328,7 @@ void PrintHelp()
     printf("  -a,  --address INVERTER_ADDRESS          inverter BT address\n");
     printf("  -t,  --timeout TIMEOUT                   bluetooth timeout (secs) default 5\n");
     printf("  -p,  --password PASSWORD                 inverter user password default 0000\n");
-    printf("  -f,  --file FILENAME                     command file default sma.in.new\n");
+    printf("  -f,  --file FILENAME                     command file default sma.in\n");
     printf("Location Information to calculate sunset and sunrise so inverter is not\n");
     printf("queried in the dark\n");
     printf("  -lat,  --latitude LATITUDE               location latitude -180 to 180 deg\n");
@@ -1605,7 +1583,7 @@ int main(int argc, char **argv)
         if (flag.file == 1)
             fp = fopen(conf.File, "r");
         else
-            fp = fopen("/etc/sma.in", "r");
+            fp = fopen("sma.in", "r");
 
         InverterCommand("init", &conf, &flag, &unit, &bt_sock, fp, &archdatalist, &archdatalen, &livedatalist, &livedatalen);
         InverterCommand("login", &conf, &flag, &unit, &bt_sock, fp, &archdatalist, &archdatalen, &livedatalist, &livedatalen);

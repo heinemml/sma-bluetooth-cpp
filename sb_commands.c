@@ -145,7 +145,8 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
         }
         lineread = strtok(line, " ;");
         if (lineread[0] == ':') {  //See if line is something we need to receive
-            if (flag->debug == 1) printf("\nCommand line we have finished%s\n", line);
+            if (flag->debug == 1)
+                printf("\nCommand sequence finished\n");
             break;
         }
         if (!strcmp(lineread, "R")) {  //See if line is something we need to receive
@@ -514,10 +515,11 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                 printf("\nSEND:");
                 //Start byte
                 printf("\n7e ");
-                j = 0;
                 //Size and checkbit
-                printf("%02x ", fl[++j]);
-                printf("                      size:              %d", fl[j]);
+                j = 1;
+                uint16_t len = (uint16_t)fl[j];
+                printf("%02x %02x                    size:              %d", fl[j], fl[j + 1], len);
+                ++j;
                 printf("\n   ");
                 printf("%02x ", fl[++j]);
                 printf("\n   ");
@@ -755,11 +757,11 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                                             ConvertStreamtoFloat(datarecord + 4, 8, &gtotal);
                                             if ((*archdatalen) == 0)
                                                 ptotal = gtotal;
-                                            printf("\n%d/%d/%4d %02d:%02d:%02d  total=%.3f Kwh current=%.0f Watts togo=%d i=%d", day, month, year, hour, minute, second, gtotal / 1000, (gtotal - ptotal) * 12, togo, i);
+                                            printf("\n%d/%d/%4d %02d:%02d:%02d  total=%.3f Kwh current=%.0f Watts togo=%d i=%d\n", day, month, year, hour, minute, second, gtotal / 1000, (gtotal - ptotal) * 12, togo, i);
                                             if (idate != prev_idate + 300) {
                                                 printf("Date Error! prev=%d current=%d\n", (int)prev_idate, (int)idate);
                                                 error = 1;
-                                                break;
+                                                // break;
                                             }
                                             if ((*archdatalen) == 0)
                                                 (*archdatalist) = (ArchDataType *)malloc(sizeof(ArchDataType));

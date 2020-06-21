@@ -918,11 +918,11 @@ char *ConvertStreamtoString(unsigned char *stream, int length)
 
     nullvalue = 1;
 
-    value = malloc(sizeof(char) * 10 + 1);
+    value = static_cast<char *>(malloc(sizeof(char) * 10 + 1));
     for (i = 0; i < length; i++) {
         if (i % 10 > j) {
             j++;
-            value = realloc(value, sizeof(char) * 10 * j + 1);
+            value = static_cast<char *>(realloc(value, sizeof(char) * 10 * j + 1));
         }
         if (stream[i] != 0xff)  //check if all ffs which is a null value
             nullvalue = 0;
@@ -1293,7 +1293,7 @@ char *return_xml_data(int index)
             while (cur != NULL) {
                 if (xmlStrEqual(cur->name, (const xmlChar *)"Value")) {
                     keyword = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1);
-                    return_string = malloc(sizeof(char) * strlen((char *)keyword) + 1);
+                    return_string = static_cast<char *>(malloc(sizeof(char) * strlen((char *)keyword) + 1));
                     strcpy(return_string, (char *)keyword);
                     xmlFree(keyword);
                 }
@@ -1750,7 +1750,7 @@ int main(int argc, char **argv)
 
     if ((flag.repost == 1) && (error == 0)) {
         printf("\nrepost\n");  //getchar();
-        sma_repost(&conf);
+        sma_repost(&conf, &flag);
     }
 
     return 0;

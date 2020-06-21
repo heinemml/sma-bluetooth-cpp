@@ -36,7 +36,7 @@ size_t write_data(void *ptr, size_t size, size_t nmemb, void *stream)
 {
     size_t written;
 
-    written = fwrite(ptr, size, nmemb, stream);
+    written = fwrite(ptr, size, nmemb, reinterpret_cast<FILE *>(stream));
     return written;
 }
 
@@ -79,14 +79,14 @@ void sma_repost(ConfType *conf, FlagType *flag)
             if (flag->debug == 1) printf("result = %d\n", result);
             rewind(fp);
             fgets(buf, sizeof(buf), fp);
-            result = sscanf(buf, "Bad request %s has no outputs between the requested period", buf1);
+            result = static_cast<CURLcode>(sscanf(buf, "Bad request %s has no outputs between the requested period", buf1));
             printf("return=%d buf1=%s\n", result, buf1);
             if (result > 0) {
                 update_data = 1;
                 printf("test\n");
             } else {
                 printf("buf=%s here 1.\n", buf);
-                result = sscanf(buf, "Forbidden 403: Exceeded 60 requests %s", buf1);
+                result = static_cast<CURLcode>(sscanf(buf, "Forbidden 403: Exceeded 60 requests %s", buf1));
                 if (result > 0) {
                     printf("Too Many requests in 1hr sleeping for 1hr\n");
                     fclose(fp);

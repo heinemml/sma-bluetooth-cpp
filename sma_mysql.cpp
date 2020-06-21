@@ -1,26 +1,17 @@
+#include "sma_mysql.h"
+
 #include <mysql/mysql.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
-#include "sma_struct.h"
-
 MYSQL *conn;
 MYSQL_RES *res;
 MYSQL_RES *res1;
 MYSQL_RES *res2;
 
-void OpenMySqlDatabase(char *, char *, char *, char *);
-void CloseMySqlDatabase();
-int DoQuery(char *);
-int DoQuery1(char *);
-int DoQuery2(char *);
-int install_mysql_tables(ConfType *, FlagType *, char *);
-void update_mysql_tables(ConfType *, FlagType *);
-int check_schema(ConfType *, FlagType *, char *);
-
-void OpenMySqlDatabase(char *server, char *user, char *password, char *database)
+void OpenMySqlDatabase(const char *server, const char *user, const char *password, const char *database)
 {
     conn = mysql_init(NULL);
     /* Connect to database */
@@ -40,7 +31,7 @@ void CloseMySqlDatabase()
     mysql_close(conn);
 }
 
-int DoQuery(char *query)
+int DoQuery(const char *query)
 {
     /* execute query */
 
@@ -51,7 +42,7 @@ int DoQuery(char *query)
     return *mysql_error(conn);
 }
 
-int DoQuery1(char query[1000])
+int DoQuery1(const char *query)
 {
     /* execute query */
 
@@ -62,7 +53,7 @@ int DoQuery1(char query[1000])
     return *mysql_error(conn);
 }
 
-int DoQuery2(char query[1000])
+int DoQuery2(const char *query)
 {
     /* execute query */
 
@@ -73,7 +64,7 @@ int DoQuery2(char query[1000])
     return *mysql_error(conn);
 }
 
-int install_mysql_tables(ConfType *conf, FlagType *flag, char *SCHEMA)
+int install_mysql_tables(ConfType *conf, FlagType *flag, const char *SCHEMA)
 /*  Do initial mysql table creationsa */
 {
     int found = 0;
@@ -242,7 +233,7 @@ void update_mysql_tables(ConfType *conf, FlagType *flag)
     mysql_close(conn);
 }
 
-int check_schema(ConfType *conf, FlagType *flag, char *SCHEMA)
+int check_schema(ConfType *conf, FlagType *flag, const char *SCHEMA)
 /*  Check if using the correct database schema */
 {
     int found = 0;

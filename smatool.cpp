@@ -17,7 +17,6 @@
 
 /* compile gcc -lbluetooth -lcurl -lmysqlclient -g -o smatool smatool.c */
 
-#define _XOPEN_SOURCE /* glibc needs this */
 #include <assert.h>
 #include <curl/curl.h>
 #include <errno.h>
@@ -47,9 +46,8 @@ typedef u_int16_t u16;
 #define PPPGOODFCS16 0xf0b8 /* Good final FCS value */
 #define ASSERT(x) assert(x)
 #define SCHEMA "4"    /* Current database schema */
-#define _XOPEN_SOURCE /* glibc2 needs this */
 
-char *accepted_strings[] = {
+const char *accepted_strings[] = {
     "$END",
     "$ADDR",
     "$TIME",
@@ -122,7 +120,7 @@ static u16 fcstab[256] = {
  */
 u16 pppfcs16(u16 fcs, void *_cp, int len)
 {
-    register unsigned char *cp = (unsigned char *)_cp;
+    unsigned char *cp = (unsigned char *)_cp;
     /* don't worry about the efficiency of these asserts here.  gcc will
      * recognise that the asserted expressions are constant and remove them.
      * Whether they are usefull is another question. 

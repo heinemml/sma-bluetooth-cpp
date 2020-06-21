@@ -1,5 +1,4 @@
 #define _XOPEN_SOURCE  // needed for strptime
-#define _GNU_SOURCE    // needed for getline
 
 #include "sb_commands.h"
 
@@ -25,7 +24,8 @@ int ConnectSocket(ConfType *conf)
         int sock = 0;
         if ((sock = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM)) >= 0) {
             // set the connection parameters (who to connect to)
-            struct sockaddr_rc addr = {0};
+            struct sockaddr_rc addr {
+            };
             addr.rc_family = AF_BLUETOOTH;
             addr.rc_channel = (uint8_t)1;
             str2ba(conf->BTAddress, &addr.rc_bdaddr);
@@ -47,7 +47,7 @@ int ConnectSocket(ConfType *conf)
 /*
  * Update internal running list with live data for later processing
  */
-int UpdateLiveList(FlagType *flag, UnitType *unit, char *format, time_t idate, char *description, float fvalue, int ivalue, char *svalue, char *units, int persistent, int *livedatalen, LiveDataType **livedatalist)
+int UpdateLiveList(FlagType *flag, UnitType *unit, const char *format, time_t idate, const char *description, float fvalue, int ivalue, char *svalue, char *units, int persistent, int *livedatalen, LiveDataType **livedatalist)
 {
     unsigned long long inverter_serial;
 

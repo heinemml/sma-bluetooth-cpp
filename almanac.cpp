@@ -218,7 +218,7 @@ void update_almanac(ConfType *conf, char *sunrise, char *sunset, int debug)
 
     OpenMySqlDatabase(conf->MySqlHost, conf->MySqlUser, conf->MySqlPwd, conf->MySqlDatabase);
     //Get Start of day value
-    sprintf(SQLQUERY, "INSERT INTO Almanac SET sunrise=CONCAT(DATE_FORMAT( NOW(), \"%%Y-%%m-%%d \"),\"%s\"), sunset=CONCAT(DATE_FORMAT( NOW(), \"%%Y-%%m-%%d \"),\"%s\" ), date=NOW() ", sunrise, sunset);
+    sprintf(SQLQUERY, R"(INSERT INTO Almanac SET sunrise=CONCAT(DATE_FORMAT( NOW(), "%%Y-%%m-%%d "),"%s"), sunset=CONCAT(DATE_FORMAT( NOW(), "%%Y-%%m-%%d "),"%s" ), date=NOW() )", sunrise, sunset);
     if (debug == 1) printf("%s\n", SQLQUERY);
     DoQuery(SQLQUERY);
     mysql_close(conn);

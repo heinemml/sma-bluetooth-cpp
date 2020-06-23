@@ -148,7 +148,7 @@ int install_mysql_tables(ConfType *conf, FlagType *flag, const char *SCHEMA)
         if (flag->debug == 1) printf("%s\n", SQLQUERY);
         DoQuery(SQLQUERY);
 
-        sprintf(SQLQUERY, "INSERT INTO `settings` SET `value` = \'schema\', `data` = \'%s\' ", SCHEMA);
+        sprintf(SQLQUERY, R"(INSERT INTO `settings` SET `value` = 'schema', `data` = '%s' )", SCHEMA);
 
         if (flag->debug == 1) printf("%s\n", SQLQUERY);
         DoQuery(SQLQUERY);
@@ -280,7 +280,7 @@ void live_mysql(ConfType conf, FlagType flag, LiveDataType *livedatalist, int li
 
         live_data = 1;
         if ((livedatalist + i)->Persistent == 1) {
-            sprintf(SQLQUERY, "SELECT IF (Value = \"%s\",NULL,Value) FROM LiveData where Inverter=\"%s\" and Serial=%llu and Description=\"%s\" ORDER BY DateTime DESC LIMIT 1", (livedatalist + i)->Value, (livedatalist + i)->inverter, (livedatalist + i)->serial, (livedatalist + i)->Description);
+            sprintf(SQLQUERY, R"(SELECT IF (Value = "%s",NULL,Value) FROM LiveData where Inverter="%s" and Serial=%llu and Description="%s" ORDER BY DateTime DESC LIMIT 1)", (livedatalist + i)->Value, (livedatalist + i)->inverter, (livedatalist + i)->serial, (livedatalist + i)->Description);
             if (flag.debug == 1) printf("%s\n", SQLQUERY);
             if (DoQuery(SQLQUERY) == 0) {
                 if ((row = mysql_fetch_row(res)))  //if there is a result, update the row
@@ -294,7 +294,7 @@ void live_mysql(ConfType conf, FlagType flag, LiveDataType *livedatalist, int li
         }
         if (live_data == 1) {
             sprintf(datetime, "%d-%02d-%02d %02d:%02d:%02d", year, month, day, hour, minute, second);
-            sprintf(SQLQUERY, "INSERT INTO LiveData ( DateTime, Inverter, Serial, Description, Value, Units ) VALUES ( \'%s\', \'%s\', %lld, \'%s\', \'%s\', \'%s\'  ) ON DUPLICATE KEY UPDATE DateTime=Datetime, Inverter=VALUES(Inverter), Serial=VALUES(Serial), Description=VALUES(Description), Description=VALUES(Description), Value=VALUES(Value), Units=VALUES(Units)", datetime, (livedatalist + i)->inverter, (livedatalist + i)->serial, (livedatalist + i)->Description, (livedatalist + i)->Value, (livedatalist + i)->Units);
+            sprintf(SQLQUERY, R"(INSERT INTO LiveData ( DateTime, Inverter, Serial, Description, Value, Units ) VALUES ( '%s', '%s', %lld, '%s', '%s', '%s'  ) ON DUPLICATE KEY UPDATE DateTime=Datetime, Inverter=VALUES(Inverter), Serial=VALUES(Serial), Description=VALUES(Description), Description=VALUES(Description), Value=VALUES(Value), Units=VALUES(Units))", datetime, (livedatalist + i)->inverter, (livedatalist + i)->serial, (livedatalist + i)->Description, (livedatalist + i)->Value, (livedatalist + i)->Units);
             if (flag.debug == 1) printf("%s\n", SQLQUERY);
             DoQuery(SQLQUERY);
         }

@@ -972,7 +972,7 @@ InitReturnKeys(ConfType *conf)
                         tmp.recordgap = 0;
                         tmp.persistent = 1;
 
-                        if (sscanf(line, "%x %x \"%[^\"]\" \"%[^\"]\" %d %d %d %d", &tmp.key1, &tmp.key2, tmp.description, tmp.units, &tmp.decimal, &tmp.recordgap, &tmp.datalength, &tmp.persistent) == 8) {
+                        if (sscanf(line, R"(%x %x "%[^"]" "%[^"]" %d %d %d %d)", &tmp.key1, &tmp.key2, tmp.description, tmp.units, &tmp.decimal, &tmp.recordgap, &tmp.datalength, &tmp.persistent) == 8) {
                             if ((num_return_keys) == 0)
                                 returnkeylist = (ReturnType *)malloc(sizeof(ReturnType));
                             else
@@ -1630,7 +1630,7 @@ int main(int argc, char **argv)
             /* Connect to database */
             OpenMySqlDatabase(conf.MySqlHost, conf.MySqlUser, conf.MySqlPwd, conf.MySqlDatabase);
             inverter_serial = (unit[0].Serial[0] << 24) + (unit[0].Serial[1] << 16) + (unit[0].Serial[2] << 8) + unit[0].Serial[3];
-            snprintf(SQLQUERY, sizeof(SQLQUERY), "SELECT Value FROM LiveData WHERE Inverter = \'%s\' and Serial=\'%lld\' and Description=\'Max Phase 1\' ORDER BY DateTime DESC LIMIT 1", unit[0].Inverter, inverter_serial);
+            snprintf(SQLQUERY, sizeof(SQLQUERY), R"(SELECT Value FROM LiveData WHERE Inverter = '%s' and Serial='%lld' and Description='Max Phase 1' ORDER BY DateTime DESC LIMIT 1)", unit[0].Inverter, inverter_serial);
             if (flag.debug == 1) printf("%s\n", SQLQUERY);  //getchar();
             DoQuery(SQLQUERY);
 
@@ -1641,7 +1641,7 @@ int main(int argc, char **argv)
                 mysql_free_result(res);
             }
 
-            snprintf(SQLQUERY, sizeof(SQLQUERY), "SELECT DATE_FORMAT(dd1.DateTime,\'%%Y%%m%%d\'), DATE_FORMAT(dd1.DateTime,\'%%H:%%i\'), ROUND((dd1.ETotalToday-dd2.EtotalToday)*1000), if( dd1.CurrentPower < %d ,dd1.CurrentPower, %d ), dd1.DateTime FROM DayData as dd1 join DayData as dd2 on dd2.DateTime=DATE_FORMAT(dd1.DateTime,\'%%Y-%%m-%%d 00:00:00\') WHERE dd1.DateTime>=Date_Sub(CURDATE(),INTERVAL 13 DAY) and dd1.PVOutput IS NULL and dd1.CurrentPower>0 ORDER BY dd1.DateTime ASC", max_output, max_output);
+            snprintf(SQLQUERY, sizeof(SQLQUERY), R"(SELECT DATE_FORMAT(dd1.DateTime,'%%Y%%m%%d'), DATE_FORMAT(dd1.DateTime,'%%H:%%i'), ROUND((dd1.ETotalToday-dd2.EtotalToday)*1000), if( dd1.CurrentPower < %d ,dd1.CurrentPower, %d ), dd1.DateTime FROM DayData as dd1 join DayData as dd2 on dd2.DateTime=DATE_FORMAT(dd1.DateTime,'%%Y-%%m-%%d 00:00:00') WHERE dd1.DateTime>=Date_Sub(CURDATE(),INTERVAL 13 DAY) and dd1.PVOutput IS NULL and dd1.CurrentPower>0 ORDER BY dd1.DateTime ASC)", max_output, max_output);
             if (flag.debug == 1)
                 printf("%s\n", SQLQUERY);
 
@@ -1689,7 +1689,7 @@ int main(int argc, char **argv)
                             if (flag.debug == 1) printf("result = %d\n", result);
                             curl_easy_cleanup(curl);
                             if (result == 0) {
-                                snprintf(SQLQUERY, sizeof(SQLQUERY), "SELECT DATE_FORMAT(dd1.DateTime,\'%%Y%%m%%d\'), DATE_FORMAT(dd1.DateTime,\'%%H:%%i\'), ROUND((dd1.ETotalToday-dd2.EtotalToday)*1000), dd1.CurrentPower, dd1.DateTime FROM DayData as dd1 join DayData as dd2 on dd2.DateTime=DATE_FORMAT(dd1.DateTime,\'%%Y-%%m-%%d 00:00:00\') WHERE dd1.DateTime>=Date_Sub(CURDATE(),INTERVAL 13 DAY) and dd1.PVOutput IS NULL and dd1.CurrentPower>0 ORDER BY dd1.DateTime ASC limit %d", batch_count);
+                                snprintf(SQLQUERY, sizeof(SQLQUERY), R"(SELECT DATE_FORMAT(dd1.DateTime,'%%Y%%m%%d'), DATE_FORMAT(dd1.DateTime,'%%H:%%i'), ROUND((dd1.ETotalToday-dd2.EtotalToday)*1000), dd1.CurrentPower, dd1.DateTime FROM DayData as dd1 join DayData as dd2 on dd2.DateTime=DATE_FORMAT(dd1.DateTime,'%%Y-%%m-%%d 00:00:00') WHERE dd1.DateTime>=Date_Sub(CURDATE(),INTERVAL 13 DAY) and dd1.PVOutput IS NULL and dd1.CurrentPower>0 ORDER BY dd1.DateTime ASC limit %d)", batch_count);
                                 if (flag.debug == 1) printf("%s\n", SQLQUERY);
                                 DoQuery1(SQLQUERY);
                                 while ((row1 = mysql_fetch_row(res1)))  //Need to update these
@@ -1718,7 +1718,7 @@ int main(int argc, char **argv)
                         if (flag.debug == 1) printf("result = %d\n", result);
                         curl_easy_cleanup(curl);
                         if (result == 0) {
-                            snprintf(SQLQUERY, sizeof(SQLQUERY), "SELECT DATE_FORMAT(dd1.DateTime,\'%%Y%%m%%d\'), DATE_FORMAT(dd1.DateTime,\'%%H:%%i\'), ROUND((dd1.ETotalToday-dd2.EtotalToday)*1000), dd1.CurrentPower, dd1.DateTime FROM DayData as dd1 join DayData as dd2 on dd2.DateTime=DATE_FORMAT(dd1.DateTime,\'%%Y-%%m-%%d 00:00:00\') WHERE dd1.DateTime>=Date_Sub(CURDATE(),INTERVAL 1 DAY) and dd1.PVOutput IS NULL and dd1.CurrentPower>0 ORDER BY dd1.DateTime ASC limit %d", batch_count);
+                            snprintf(SQLQUERY, sizeof(SQLQUERY), R"(SELECT DATE_FORMAT(dd1.DateTime,'%%Y%%m%%d'), DATE_FORMAT(dd1.DateTime,'%%H:%%i'), ROUND((dd1.ETotalToday-dd2.EtotalToday)*1000), dd1.CurrentPower, dd1.DateTime FROM DayData as dd1 join DayData as dd2 on dd2.DateTime=DATE_FORMAT(dd1.DateTime,'%%Y-%%m-%%d 00:00:00') WHERE dd1.DateTime>=Date_Sub(CURDATE(),INTERVAL 1 DAY) and dd1.PVOutput IS NULL and dd1.CurrentPower>0 ORDER BY dd1.DateTime ASC limit %d)", batch_count);
                             if (flag.debug == 1) printf("%s\n", SQLQUERY);
                             DoQuery1(SQLQUERY);
                             while ((row1 = mysql_fetch_row(res1)))  //Need to update these

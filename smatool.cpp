@@ -289,7 +289,7 @@ int check_send_error(FlagType *flag, int *s, int *rr, unsigned char *received, i
     FD_ZERO(&readfds);
     FD_SET((*s), &readfds);
 
-    select((*s) + 1, &readfds, NULL, NULL, &tv);
+    select((*s) + 1, &readfds, nullptr, nullptr, &tv);
 
     (*terminated) = 0;  // Tag to tell if string has 7e termination
     // first read the header to get the record length
@@ -398,7 +398,7 @@ int empty_read_bluetooth(FlagType *flag, ReadRecordType *readRecord, int *s, int
     FD_ZERO(&readfds);
     FD_SET((*s), &readfds);
 
-    if (select((*s) + 1, &readfds, NULL, NULL, &tv) < 0) {
+    if (select((*s) + 1, &readfds, nullptr, nullptr, &tv) < 0) {
         printf("select error has occurred");
         getchar();
     }
@@ -552,7 +552,7 @@ int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, i
     FD_ZERO(&readfds);
     FD_SET((*s), &readfds);
 
-    if (select((*s) + 1, &readfds, NULL, NULL, &tv) < 0) {
+    if (select((*s) + 1, &readfds, nullptr, nullptr, &tv) < 0) {
         printf("select error has occurred");
         getchar();
     }
@@ -757,7 +757,7 @@ unsigned char *get_timezone_in_seconds(FlagType *flag, unsigned char *tzhex)
     float localOffset;
     int tzsecs;
 
-    curtime = time(NULL);  //get time in seconds since epoch (1/1/1970)
+    curtime = time(nullptr);  //get time in seconds since epoch (1/1/1970)
     loctime = localtime(&curtime);
     day = loctime->tm_mday;
     month = loctime->tm_mon + 1;
@@ -808,7 +808,7 @@ int auto_set_dates(ConfType *conf, FlagType *flag)
         mysql_close(conn);
     }
 
-    time_t curtime = time(NULL);  //get time in seconds since epoch (1/1/1970)
+    time_t curtime = time(nullptr);  //get time in seconds since epoch (1/1/1970)
     struct tm *loctime = localtime(&curtime);
     int day = loctime->tm_mday;
     int month = loctime->tm_mon + 1;
@@ -861,7 +861,7 @@ int is_light(ConfType *conf, FlagType *flag)
 //Set a value depending on inverter
 void SetInverterType(ConfType *conf, UnitType **unit)
 {
-    srand(time(NULL));
+    srand(time(nullptr));
     unit[0]->SUSyID[0] = 0xFF;
     unit[0]->SUSyID[1] = 0xFF;
     conf->MySUSyID[0] = rand() % 254;
@@ -948,13 +948,13 @@ InitReturnKeys(ConfType *conf)
     data_follows = 0;
 
     fp = fopen(conf->File, "r");
-    if (fp == NULL) {
+    if (fp == nullptr) {
         printf("\nCouldn't open file %s", conf->File);
         printf("\nerror=%s\n", strerror(errno));
         exit(1);
     } else {
         while (!feof(fp)) {
-            if (fgets(line, 400, fp) != NULL) {  //read line from smatool.conf
+            if (fgets(line, 400, fp) != nullptr) {  //read line from smatool.conf
                 if (line[0] != '#') {
                     if (strncmp(line, ":unit conversions", 17) == 0)
                         data_follows = 1;
@@ -1111,7 +1111,7 @@ ReadStream(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, int *s, u
         if ((*terminated) == 0) {
             if (read_bluetooth(conf, flag, readRecord, s, streamlen, stream, cc, last_sent, terminated) != 0) {
                 free(datalist);
-                datalist = NULL;
+                datalist = nullptr;
             }
 
             if (j > 0) i = 18;
@@ -1172,18 +1172,18 @@ int GetConfig(ConfType *conf, FlagType *flag)
     char value[400];
 
     if (strlen(conf->Config) > 0) {
-        if ((fp = fopen(conf->Config, "r")) == (FILE *)NULL) {
+        if ((fp = fopen(conf->Config, "r")) == (FILE *)nullptr) {
             printf("Error! Could not open file %s\n", conf->Config);
             return (-1);  //Could not open file
         }
     } else {
-        if ((fp = fopen("./smatool.conf", "r")) == (FILE *)NULL) {
+        if ((fp = fopen("./smatool.conf", "r")) == (FILE *)nullptr) {
             printf("Error! Could not open file ./smatool.conf\n");
             return (-1);  //Could not open file
         }
     }
     while (!feof(fp)) {
-        if (fgets(line, 400, fp) != NULL) {  //read line from smatool.conf
+        if (fgets(line, 400, fp) != nullptr) {  //read line from smatool.conf
             if (line[0] != '#') {
                 strcpy(value, "");  //Null out value
                 sscanf(line, "%s %s", variable, value);
@@ -1230,9 +1230,9 @@ getdoc(char *docname)
     xmlDocPtr doc;
     doc = xmlParseFile(docname);
 
-    if (doc == NULL) {
+    if (doc == nullptr) {
         fprintf(stderr, "Document not parsed successfully. \n");
-        return NULL;
+        return nullptr;
     }
 
     return doc;
@@ -1245,20 +1245,20 @@ getnodeset(xmlDocPtr doc, xmlChar *xpath)
     xmlXPathObjectPtr result;
 
     context = xmlXPathNewContext(doc);
-    if (context == NULL) {
+    if (context == nullptr) {
         printf("Error in xmlXPathNewContext\n");
-        return NULL;
+        return nullptr;
     }
     result = xmlXPathEvalExpression(xpath, context);
     xmlXPathFreeContext(context);
-    if (result == NULL) {
+    if (result == nullptr) {
         printf("Error in xmlXPathEvalExpression\n");
-        return NULL;
+        return nullptr;
     }
     if (xmlXPathNodeSetIsEmpty(result->nodesetval)) {
         xmlXPathFreeObject(result);
         printf("No result\n");
-        return NULL;
+        return nullptr;
     }
     return result;
 }
@@ -1277,7 +1277,7 @@ char *return_xml_data(int index)
     xmlXPathObjectPtr result;
     xmlChar xpath[30];
     char docname[60];
-    char *return_string = (char *)NULL;
+    char *return_string = (char *)nullptr;
     int i;
     xmlChar *keyword;
 
@@ -1288,7 +1288,7 @@ char *return_xml_data(int index)
         nodeset = result->nodesetval;
         for (i = 0; i < nodeset->nodeNr; i++) {
             cur = nodeset->nodeTab[i]->xmlChildrenNode;
-            while (cur != NULL) {
+            while (cur != nullptr) {
                 if (xmlStrEqual(cur->name, (const xmlChar *)"Value")) {
                     keyword = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1);
                     return_string = static_cast<char *>(malloc(sizeof(char) * strlen((char *)keyword) + 1));
@@ -1474,7 +1474,7 @@ char *debugdate()
     struct tm *tm;
     static char result[20];
 
-    curtime = time(NULL);  //get time in seconds since epoch (1/1/1970)
+    curtime = time(nullptr);  //get time in seconds since epoch (1/1/1970)
     tm = localtime(&curtime);
     sprintf(result, "%4d-%02d-%02d %02d:%02d:%02d",
             1900 + tm->tm_year,
@@ -1502,13 +1502,13 @@ int main(int argc, char **argv)
     MYSQL_ROW row, row1;
     char SQLQUERY[2000];
     int archdatalen = 0, livedatalen = 0;
-    ArchDataType *archdatalist = NULL;
-    LiveDataType *livedatalist = NULL;
+    ArchDataType *archdatalist = nullptr;
+    LiveDataType *livedatalist = nullptr;
 
     char sunrise_time[6], sunset_time[6];
 
     unit = (UnitType *)malloc(sizeof(UnitType) * maximumUnits);
-    if (unit == NULL) {
+    if (unit == nullptr) {
         printf("Error allocating memory for line buffer.");
         exit(1);
     }

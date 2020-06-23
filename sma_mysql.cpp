@@ -1,6 +1,5 @@
 #include "sma_mysql.h"
 
-#include <mysql/mysql.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,10 +12,10 @@ MYSQL_RES *res2;
 
 void OpenMySqlDatabase(const char *server, const char *user, const char *password, const char *database)
 {
-    conn = mysql_init(NULL);
+    conn = mysql_init(nullptr);
     /* Connect to database */
     if (!mysql_real_connect(conn, server,
-                            user, password, database, 0, NULL, 0)) {
+                            user, password, database, 0, nullptr, 0)) {
         fprintf(stderr, "%s\n", mysql_error(conn));
         exit(0);
     }
@@ -286,7 +285,7 @@ void live_mysql(ConfType conf, FlagType flag, LiveDataType *livedatalist, int li
             if (DoQuery(SQLQUERY) == 0) {
                 if ((row = mysql_fetch_row(res)))  //if there is a result, update the row
                 {
-                    if (row[0] == NULL) {
+                    if (row[0] == nullptr) {
                         live_data = 0;
                     }
                 }

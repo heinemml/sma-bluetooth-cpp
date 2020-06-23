@@ -43,7 +43,7 @@ char *sunrise(ConfType *conf, int debug)
     printf("latitude=%f longitude=%f debug=%d\n", latitude, longitude, debug);
 
     returntime = (char *)malloc(6 * sizeof(char));
-    curtime = time(NULL);  //get time in seconds since epoch (1/1/1970)
+    curtime = time(nullptr);  //get time in seconds since epoch (1/1/1970)
     loctime = localtime(&curtime);
     day = loctime->tm_mday;
     month = loctime->tm_mon + 1;
@@ -133,7 +133,7 @@ char *sunset(ConfType *conf)
 
     returntime = (char *)malloc(6 * sizeof(char));
 
-    curtime = time(NULL);  //get time in seconds since epoch (1/1/1970)
+    curtime = time(nullptr);  //get time in seconds since epoch (1/1/1970)
     loctime = localtime(&curtime);
     day = loctime->tm_mday;
     month = loctime->tm_mon + 1;

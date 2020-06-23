@@ -1,9 +1,9 @@
 #include "sma_mysql.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
 
 MYSQL *conn;
 MYSQL_RES *res;

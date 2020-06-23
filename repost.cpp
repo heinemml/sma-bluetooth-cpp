@@ -16,18 +16,19 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
 /* repost is a utility to check pvoutput data and repost any differences */
-#include <assert.h>
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/rfcomm.h>
 #include <curl/curl.h>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <time.h>
 #include <unistd.h>
+
+#include <cassert>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
 
 #include "sma_mysql.h"
 #include "sma_struct.h"

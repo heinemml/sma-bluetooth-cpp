@@ -5,7 +5,7 @@
 #ifndef SMA_BLUETOOTH_SB_COMMANDS_H
 #define SMA_BLUETOOTH_SB_COMMANDS_H
 
-#include <stdio.h>
+#include <cstdio>
 
 #include "sma_struct.h"
 

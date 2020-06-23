@@ -17,19 +17,20 @@
 
 /* compile gcc -lbluetooth -lcurl -lmysqlclient -g -o smatool smatool.c */
 
-#include <assert.h>
 #include <curl/curl.h>
-#include <errno.h>
 #include <libxml2/libxml/parser.h>
 #include <libxml2/libxml/xpath.h>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <time.h>
 #include <unistd.h>
+
+#include <cassert>
+#include <cerrno>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
 
 #include "almanac.h"
 #include "repost.h"
@@ -45,7 +46,7 @@ typedef u_int16_t u16;
 #define PPPINITFCS16 0xffff /* Initial FCS value    */
 #define PPPGOODFCS16 0xf0b8 /* Good final FCS value */
 #define ASSERT(x) assert(x)
-#define SCHEMA "4"    /* Current database schema */
+#define SCHEMA "4" /* Current database schema */
 
 const char *accepted_strings[] = {
     "$END",

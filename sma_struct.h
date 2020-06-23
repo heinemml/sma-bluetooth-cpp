@@ -18,7 +18,7 @@
 #ifndef H_SMASTRUCT
 #define H_SMASTRUCT
 
-#include <time.h>
+#include <ctime>
 
 #define DATELENGTH 20
 

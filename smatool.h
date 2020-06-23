@@ -1,7 +1,7 @@
 #ifndef SMA_BLUETOOTH_SMATOOL_H
 #define SMA_BLUETOOTH_SMATOOL_H
 
-#include <time.h>
+#include <ctime>
 
 unsigned char *ReadStream(ConfType *, FlagType *, ReadRecordType *, int *, unsigned char *, int *, unsigned char *, int *, unsigned char *, int, int *, int *);
 char *return_xml_data(int index);

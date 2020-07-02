@@ -121,7 +121,7 @@ static u16 fcstab[256] = {
  */
 u16 pppfcs16(u16 fcs, void *_cp, int len)
 {
-    unsigned char *cp = (unsigned char *)_cp;
+    auto *cp = (unsigned char *)_cp;
     /* don't worry about the efficiency of these asserts here.  gcc will
      * recognise that the asserted expressions are constant and remove them.
      * Whether they are usefull is another question. 
@@ -230,7 +230,7 @@ void tryfcs16(FlagType *flag, unsigned char *cp, int len, unsigned char *fl, int
     }
 }
 
-unsigned char conv(char *nn)
+unsigned char conv(const char *nn)
 {
     unsigned char tt = 0, res = 0;
     int i;
@@ -275,12 +275,13 @@ unsigned char conv(char *nn)
     return res;
 }
 
-int check_send_error(FlagType *flag, int *s, int *rr, unsigned char *received, int cc, unsigned char *last_sent, int *terminated, int *already_read)
+int check_send_error(FlagType *flag, const int *s, int *rr, unsigned char *received, int cc, unsigned char *last_sent, int *terminated, int *already_read)
 {
     ssize_t bytes_read;
     unsigned char buf[1024]; /*read buffer*/
     unsigned char header[3]; /*read buffer*/
-    struct timeval tv;
+    struct timeval tv {
+    };
     fd_set readfds;
 
     tv.tv_sec = 0;  // set timeout of reading
@@ -297,8 +298,8 @@ int check_send_error(FlagType *flag, int *s, int *rr, unsigned char *received, i
     if (FD_ISSET((*s), &readfds)) {                          // did we receive anything within 5 seconds
         bytes_read = recv((*s), header, sizeof(header), 0);  //Get length of string
         (*rr) = 0;
-        for (unsigned int i = 0; i < sizeof(header); i++) {
-            received[(*rr)] = header[i];
+        for (unsigned char c : header) {
+            received[(*rr)] = c;
             if (flag->debug == 1) printf("%02x ", received[(*rr)]);
             (*rr)++;
         }
@@ -309,7 +310,7 @@ int check_send_error(FlagType *flag, int *s, int *rr, unsigned char *received, i
         return -1;
     }
 
-    uint16_t len = (uint16_t)header[1];
+    auto len = (uint16_t)header[1];
 
     if (FD_ISSET((*s), &readfds)) {                             // did we receive anything within 5 seconds
         bytes_read = recv((*s), buf, len - sizeof(header), 0);  //Read the length specified by header
@@ -324,10 +325,10 @@ int check_send_error(FlagType *flag, int *s, int *rr, unsigned char *received, i
             printf("\nReceiving\n");
             printf("    %08x: .. .. .. .. .. .. .. .. .. .. .. .. ", 0);
             unsigned int j = 12;
-            for (unsigned int i = 0; i < sizeof(header); i++) {
+            for (unsigned char c : header) {
                 if (j % 16 == 0)
                     printf("\n    %08x: ", j);
-                printf("%02x ", header[i]);
+                printf("%02x ", c);
                 j++;
             }
             for (ssize_t i = 0; i < bytes_read; i++) {
@@ -382,14 +383,15 @@ int check_send_error(FlagType *flag, int *s, int *rr, unsigned char *received, i
     return 0;
 }
 
-int empty_read_bluetooth(FlagType *flag, ReadRecordType *readRecord, int *s, int *rr, unsigned char *received, int *terminated)
+int empty_read_bluetooth(FlagType *flag, ReadRecordType *readRecord, const int *s, int *rr, unsigned char *received, int *terminated)
 {
     ssize_t bytes_read = 0;
     int last_decoded = 0;
     int j = 0;
     unsigned char buf[1024]; /*read buffer*/
     unsigned char header[4]; /*read buffer*/
-    struct timeval tv;
+    struct timeval tv {
+    };
     fd_set readfds;
 
     tv.tv_sec = 1;  // set timeout of reading
@@ -420,7 +422,7 @@ int empty_read_bluetooth(FlagType *flag, ReadRecordType *readRecord, int *s, int
         return -1;
     }
 
-    uint16_t len = (uint16_t)header[1];
+    auto len = (uint16_t)header[1];
 
     if (FD_ISSET((*s), &readfds)) {                             // did we receive anything within 5 seconds
         bytes_read = recv((*s), buf, len - sizeof(header), 0);  //Read the length specified by header
@@ -534,7 +536,7 @@ int empty_read_bluetooth(FlagType *flag, ReadRecordType *readRecord, int *s, int
     return 0;
 }
 
-int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, int *s, int *rr, unsigned char *received, int cc, unsigned char *last_sent, int *terminated)
+int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, const int *s, int *rr, unsigned char *received, int cc, unsigned char *last_sent, int *terminated)
 {
     int bytes_read = 0;
     int i = 0;
@@ -543,7 +545,8 @@ int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, i
     unsigned char buf[1024]; /*read buffer*/
     unsigned char header[4]; /*read buffer*/
     unsigned char checkbit;
-    struct timeval tv;
+    struct timeval tv {
+    };
     fd_set readfds;
 
     tv.tv_sec = conf->bt_timeout;  // set timeout of reading
@@ -577,7 +580,7 @@ int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, i
         return -1;
     }
 
-    uint16_t len = (uint16_t)header[1];
+    auto len = (uint16_t)header[1];
 
     if (FD_ISSET((*s), &readfds)) {                             // did we receive anything within 5 seconds
         bytes_read = recv((*s), buf, len - sizeof(header), 0);  //Read the length specified by header
@@ -874,7 +877,7 @@ void SetInverterType(ConfType *conf, UnitType **unit)
 }
 
 //Convert a recieved string to a value
-long ConvertStreamtoLong(unsigned char *stream, int length, unsigned long long *value)
+long ConvertStreamtoLong(const unsigned char *stream, int length, unsigned long long *value)
 {
     int i, nullvalue;
 
@@ -892,7 +895,7 @@ long ConvertStreamtoLong(unsigned char *stream, int length, unsigned long long *
 }
 
 //Convert a recieved string to a value
-float ConvertStreamtoFloat(unsigned char *stream, int length, float *value)
+float ConvertStreamtoFloat(const unsigned char *stream, int length, float *value)
 {
     int i, nullvalue;
 
@@ -910,7 +913,7 @@ float ConvertStreamtoFloat(unsigned char *stream, int length, float *value)
 }
 
 //Convert a recieved string to a value
-char *ConvertStreamtoString(unsigned char *stream, int length)
+char *ConvertStreamtoString(const unsigned char *stream, int length)
 {
     int i, j = 0, nullvalue;
     char *value;
@@ -1005,7 +1008,7 @@ InitReturnKeys(ConfType *conf)
 }
 
 //Convert a recieved string to a value
-int ConvertStreamtoInt(unsigned char *stream, int length)
+int ConvertStreamtoInt(const unsigned char *stream, int length)
 {
     int i, nullvalue;
 
@@ -1024,7 +1027,7 @@ int ConvertStreamtoInt(unsigned char *stream, int length)
 }
 
 //Convert a received string to a value
-time_t ConvertStreamtoTime(unsigned char *stream, int length, time_t *value, int *day, int *month, int *year, int *hour, int *minute, int *second)
+time_t ConvertStreamtoTime(const unsigned char *stream, int length, time_t *value, int *day, int *month, int *year, int *hour, int *minute, int *second)
 {
     int i, nullvalue;
     struct tm *loctime;

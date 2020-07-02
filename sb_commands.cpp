@@ -1,16 +1,15 @@
-#define _XOPEN_SOURCE  // needed for strptime
-
 #include "sb_commands.h"
 
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/rfcomm.h>
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/socket.h>
-#include <time.h>
 #include <unistd.h>
+
+#include <cerrno>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
 
 #include "sma_mysql.h"
 #include "sma_struct.h"
@@ -97,7 +96,8 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
     time_t prev_idate;
     unsigned char tzhex[2] = {0};
     unsigned char timeset[4] = {0x30, 0xfe, 0x7e, 0x00};
-    struct tm tm;
+    struct tm tm {
+    };
     int day, month, year, hour, minute, second;
     unsigned char fl[1024] = {0};
     unsigned char received[1024];
@@ -517,7 +517,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                 printf("\n7e ");
                 //Size and checkbit
                 j = 1;
-                uint16_t len = (uint16_t)fl[j];
+                auto len = (uint16_t)fl[j];
                 printf("%02x %02x                    size:              %d", fl[j], fl[j + 1], len);
                 ++j;
                 printf("\n   ");

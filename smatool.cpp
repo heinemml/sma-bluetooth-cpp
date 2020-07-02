@@ -539,14 +539,10 @@ int empty_read_bluetooth(FlagType *flag, ReadRecordType *readRecord, const int *
 int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, const int *s, int *rr, unsigned char *received, int cc, unsigned char *last_sent, int *terminated)
 {
     int bytes_read = 0;
-    int i = 0;
-    int last_decoded = 0;
-    int j = 0;
     unsigned char buf[1024]; /*read buffer*/
     unsigned char header[4]; /*read buffer*/
     unsigned char checkbit;
-    struct timeval tv {
-    };
+    timeval tv{};
     fd_set readfds;
 
     tv.tv_sec = conf->bt_timeout;  // set timeout of reading
@@ -595,11 +591,11 @@ int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, c
     readRecord->Status[1] = 0;
     if (bytes_read > 0) {
         if (flag->debug == 1) {
+            int i = 0;
             printf("\n-----------------------------------------------------------");
             printf("\nREAD:");
             //Start byte
             printf("\n7e ");
-            j++;
             //Size and checkbit
             printf("%02x %02x ", header[1], header[2]);
             printf("                   size:              %d", len);
@@ -630,7 +626,6 @@ int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, c
             readRecord->Control[0] = buf[12];
             readRecord->Control[1] = buf[13];
 
-            last_decoded = 14;
             if (memcmp(buf + 14, "\x7e\xff\x03\x60\x65", 5) == 0) {
                 printf("\n");
                 for (i = 14; i < bytes_read; i++) {
@@ -677,11 +672,10 @@ int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, c
                 }
                 printf("                   count down:        %02d %02x:%02x", buf[31] + buf[32] * 256, buf[32], buf[31]);
                 printf("\n   ");
-                last_decoded = 33;
             }
             printf("\n   ");
-            j = 0;
-            for (i = last_decoded; i < bytes_read; i++) {
+            size_t j = 0;
+            for (; i < bytes_read; i++) {
                 if (j % 16 == 0)
                     printf("\n   %08x: ", j);
                 printf("%02x ", buf[i]);
@@ -708,9 +702,9 @@ int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, c
             (*terminated) = 1;
         else
             (*terminated) = 0;
-        for (i = 0; i < bytes_read; i++) {  //start copy the rec buffer in to received
-            if (buf[i] == 0x7d) {           //did we receive the escape char
-                switch (buf[i + 1]) {       // act depending on the char after the escape char
+        for (int i = 0; i < bytes_read; i++) {  //start copy the rec buffer in to received
+            if (buf[i] == 0x7d) {               //did we receive the escape char
+                switch (buf[i + 1]) {           // act depending on the char after the escape char
 
                     case 0x5e:
                         received[(*rr)] = 0x7e;
@@ -734,7 +728,7 @@ int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, c
         fix_length_received(flag, received, *rr);
         if (flag->debug == 2) {
             printf("\n");
-            for (i = 0; i < (*rr); i++) printf("%02x ", received[(i)]);
+            for (int i = 0; i < (*rr); i++) printf("%02x ", received[(i)]);
         }
         if (flag->debug == 1) printf("\n\n");
     }
@@ -743,8 +737,8 @@ int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, c
 
 int select_str(char *s)
 {
-    unsigned int i;
-    for (i = 0; i < sizeof(accepted_strings) / sizeof(*accepted_strings); i++) {
+
+    for (size_t i = 0; i < sizeof(accepted_strings) / sizeof(*accepted_strings); ++i) {
         //printf( "\ni=%d accepted=%s string=%s", i, accepted_strings[i], s );
         if (!strcmp(s, accepted_strings[i])) return i;
     }
@@ -879,17 +873,16 @@ void SetInverterType(ConfType *conf, UnitType **unit)
 //Convert a recieved string to a value
 long ConvertStreamtoLong(const unsigned char *stream, int length, unsigned long long *value)
 {
-    int i, nullvalue;
 
     (*value) = 0;
-    nullvalue = 1;
+    bool nullvalue = true;
 
-    for (i = 0; i < length; i++) {
+    for (int i = 0; i < length; i++) {
         if (stream[i] != 0xff)  //check if all ffs which is a null value
-            nullvalue = 0;
+            nullvalue = false;
         (*value) = (*value) + stream[i] * pow(256, i);
     }
-    if (nullvalue == 1)
+    if (nullvalue)
         (*value) = 0;  //Asigning null to 0 at this stage unless it breaks something
     return (*value);
 }
@@ -897,17 +890,15 @@ long ConvertStreamtoLong(const unsigned char *stream, int length, unsigned long 
 //Convert a recieved string to a value
 float ConvertStreamtoFloat(const unsigned char *stream, int length, float *value)
 {
-    int i, nullvalue;
-
     (*value) = 0;
-    nullvalue = 1;
+    bool nullvalue = true;
 
-    for (i = 0; i < length; i++) {
+    for (int i = 0; i < length; i++) {
         if (stream[i] != 0xff)  //check if all ffs which is a null value
-            nullvalue = 0;
+            nullvalue = false;
         (*value) = (*value) + stream[i] * pow(256, i);
     }
-    if (nullvalue == 1)
+    if (nullvalue)
         (*value) = 0;  //Asigning null to 0 at this stage unless it breaks something
     return (*value);
 }
@@ -915,28 +906,29 @@ float ConvertStreamtoFloat(const unsigned char *stream, int length, float *value
 //Convert a recieved string to a value
 char *ConvertStreamtoString(const unsigned char *stream, int length)
 {
-    int i, j = 0, nullvalue;
     char *value;
-
-    nullvalue = 1;
+    bool nullvalue = true;
 
     value = static_cast<char *>(malloc(sizeof(char) * 10 + 1));
-    for (i = 0; i < length; i++) {
+    int j = 0, i = 0;
+    for (; i < length; i++) {
         if (i % 10 > j) {
             j++;
             value = static_cast<char *>(realloc(value, sizeof(char) * 10 * j + 1));
         }
         if (stream[i] != 0xff)  //check if all ffs which is a null value
-            nullvalue = 0;
+            nullvalue = false;
         if (stream[i] != 0) {
             value[i] = stream[i];
         }
     }
-    if (nullvalue == 1)
+
+    if (nullvalue)
         (*value) = 0;  //Asigning null to 0 at this stage unless it breaks something
     else
         value[i] = 0;  //string null termination
-    return (char *)value;
+
+    return value;
 }
 //read return value data from init file
 ReturnType *
@@ -1010,17 +1002,15 @@ InitReturnKeys(ConfType *conf)
 //Convert a recieved string to a value
 int ConvertStreamtoInt(const unsigned char *stream, int length)
 {
-    int i, nullvalue;
-
     int value = 0;
-    nullvalue = 1;
+    bool nullvalue = true;
 
-    for (i = 0; i < length; i++) {
+    for (int i = 0; i < length; i++) {
         if (stream[i] != 0xff)  //check if all ffs which is a null value
-            nullvalue = 0;
+            nullvalue = false;
         value = value + stream[i] * pow(256, i);
     }
-    if (nullvalue == 1)
+    if (nullvalue)
         value = 0;  //Asigning null to 0 at this stage unless it breaks something
 
     return value;
@@ -1029,18 +1019,17 @@ int ConvertStreamtoInt(const unsigned char *stream, int length)
 //Convert a received string to a value
 time_t ConvertStreamtoTime(const unsigned char *stream, int length, time_t *value, int *day, int *month, int *year, int *hour, int *minute, int *second)
 {
-    int i, nullvalue;
     struct tm *loctime;
 
     (*value) = 0;
-    nullvalue = 1;
+    bool nullvalue = true;
 
-    for (i = 0; i < length; i++) {
+    for (int i = 0; i < length; i++) {
         if (stream[i] != 0xff)  //check if all ffs which is a null value
-            nullvalue = 0;
+            nullvalue = false;
         (*value) = (*value) + stream[i] * pow(256, i);
     }
-    if (nullvalue == 1)
+    if (nullvalue)
         (*value) = 0;  //Asigning null to 0 at this stage unless it breaks something
     else {
         //Get human readable dates
@@ -1282,7 +1271,6 @@ char *return_xml_data(int index)
     xmlChar xpath[30];
     char docname[60];
     char *return_string = (char *)nullptr;
-    int i;
     xmlChar *keyword;
 
     setup_xml_xpath(xpath, docname, index);
@@ -1290,7 +1278,7 @@ char *return_xml_data(int index)
     result = getnodeset(doc, xpath);
     if (result) {
         nodeset = result->nodesetval;
-        for (i = 0; i < nodeset->nodeNr; i++) {
+        for (int i = 0; i < nodeset->nodeNr; i++) {
             cur = nodeset->nodeTab[i]->xmlChildrenNode;
             while (cur != nullptr) {
                 if (xmlStrEqual(cur->name, (const xmlChar *)"Value")) {
@@ -1355,10 +1343,8 @@ void PrintHelp()
 /* Init Config to default values */
 int ReadCommandConfig(ConfType *conf, FlagType *flag, int argc, char **argv, int *no_dark, int *install, int *update)
 {
-    int i;
-
     // these need validation checking at some stage TODO
-    for (i = 1; i < argc; i++)  //Read through passed arguments
+    for (int i = 1; i < argc; i++)  //Read through passed arguments
     {
         if ((strcmp(argv[i], "-v") == 0) || (strcmp(argv[i], "--verbose") == 0)) {
             flag->verbose = 1;

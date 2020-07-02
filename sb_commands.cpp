@@ -81,9 +81,8 @@ int UpdateLiveList(FlagType *flag, UnitType *unit, const char *format, time_t id
 int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE *fp, int *linenum, ArchDataType **archdatalist, int *archdatalen, LiveDataType **livedatalist, int *livedatalen)
 {
     char *line;
-    size_t len = 0;
     ssize_t read;
-    int i, j, cc, rr;
+    int cc = 0, rr = 0;
     int datalen = 0;
     int failedbluetooth = 0;
     int error = 0;
@@ -96,8 +95,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
     time_t prev_idate;
     unsigned char tzhex[2] = {0};
     unsigned char timeset[4] = {0x30, 0xfe, 0x7e, 0x00};
-    struct tm tm {
-    };
+    tm tm{};
     int day, month, year, hour, minute, second;
     unsigned char fl[1024] = {0};
     unsigned char received[1024];
@@ -136,6 +134,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
     /* get the report time - used in various places */
     reporttime = time(nullptr);  //get time in seconds since epoch (1/1/1970)
 
+    size_t len;
     while ((read = getline(&line, &len, fp)) != -1) {  //read line from sma.in
         (*linenum)++;
         last_sent = (unsigned char *)malloc(sizeof(unsigned char));
@@ -160,21 +159,21 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                         break;
 
                     case 1:  // $ADDR
-                        for (i = 0; i < 6; i++) {
+                        for (int i = 0; i < 6; i++) {
                             fl[cc] = dest_address[i];
                             cc++;
                         }
                         break;
 
                     case 3:  // $SERIAL
-                        for (i = 0; i < 4; i++) {
+                        for (int i = 0; i < 4; i++) {
                             fl[cc] = unit[0]->Serial[i];
                             cc++;
                         }
                         break;
 
                     case 7:  // $ADD2
-                        for (i = 0; i < 6; i++) {
+                        for (int i = 0; i < 6; i++) {
                             fl[cc] = conf->MyBTAddress[i];
                             cc++;
                         }
@@ -188,7 +187,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
             } while (strcmp(lineread, "$END") != 0);
             if (flag->debug == 1) {
                 printf("[%d] %s waiting for: ", (*linenum), debugdate());
-                for (i = 0; i < cc; i++) printf("%02x ", fl[i]);
+                for (int i = 0; i < cc; i++) printf("%02x ", fl[i]);
                 printf("\n\n");
             }
             if (flag->debug == 1) printf("[%d] %s Waiting for data on rfcomm\n", (*linenum), debugdate());
@@ -209,10 +208,10 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
 
                     if (flag->debug == 1) {
                         printf("[%d] %s looking for: ", (*linenum), debugdate());
-                        for (i = 0; i < cc; i++) printf("%02x ", fl[i]);
+                        for (int i = 0; i < cc; i++) printf("%02x ", fl[i]);
                         printf("\n");
                         printf("[%d] %s received:    ", (*linenum), debugdate());
-                        for (i = 0; i < rr; i++) printf("%02x ", received[i]);
+                        for (int i = 0; i < rr; i++) printf("%02x ", received[i]);
                         printf("\n\n");
                     }
 
@@ -225,7 +224,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                 }
             } while (found == 0);
             if (flag->debug == 2) {
-                for (i = 0; i < cc; i++) printf("%02x ", fl[i]);
+                for (int i = 0; i < cc; i++) printf("%02x ", fl[i]);
                 printf("\n\n");
             }
         }
@@ -243,21 +242,21 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                         break;
 
                     case 1:  // $ADDR
-                        for (i = 0; i < 6; i++) {
+                        for (size_t i = 0; i < 6; i++) {
                             fl[cc] = dest_address[i];
                             cc++;
                         }
                         break;
 
                     case 3:  // $SERIAL
-                        for (i = 0; i < 4; i++) {
+                        for (size_t i = 0; i < 4; i++) {
                             fl[cc] = unit[0]->Serial[i];
                             cc++;
                         }
                         break;
 
                     case 7:  // $ADD2
-                        for (i = 0; i < 6; i++) {
+                        for (size_t i = 0; i < 6; i++) {
                             fl[cc] = conf->MyBTAddress[i];
                             cc++;
                         }
@@ -266,7 +265,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                     case 2:  // $TIME
                         // get report time and convert
                         sprintf(tt, "%x", (int)reporttime);  //convert to a hex in a string
-                        for (i = 7; i > 0; i = i - 2) {      //change order and convert to integer
+                        for (int i = 7; i > 0; i = i - 2) {  //change order and convert to integer
                             ti[1] = tt[i];
                             ti[0] = tt[i - 1];
                             ti[2] = '\0';
@@ -278,7 +277,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                     case 11:                                     // $TMPLUS
                                                                  // get report time and convert
                         sprintf(tt, "%x", (int)reporttime + 1);  //convert to a hex in a string
-                        for (i = 7; i > 0; i = i - 2) {          //change order and convert to integer
+                        for (size_t i = 7; i > 0; i = i - 2) {   //change order and convert to integer
                             ti[1] = tt[i];
                             ti[0] = tt[i - 1];
                             ti[2] = '\0';
@@ -290,7 +289,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                     case 10:  // $TMMINUS
                         // get report time and convert
                         sprintf(tt, "%x", (int)reporttime - 1);  //convert to a hex in a string
-                        for (i = 7; i > 0; i = i - 2) {          //change order and convert to integer
+                        for (size_t i = 7; i > 0; i = i - 2) {   //change order and convert to integer
                             ti[1] = tt[i];
                             ti[0] = tt[i - 1];
                             ti[2] = '\0';
@@ -306,7 +305,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                         break;
 
                     case 12:  // $TIMESTRING
-                        for (i = 0; i < 25; i++) {
+                        for (size_t i = 0; i < 25; i++) {
                             fl[cc] = timestr[i];
                             cc++;
                         }
@@ -339,7 +338,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                             fromtime = 0;
                         }
                         sprintf(tt, "%03x", (int)fromtime - 300);  //convert to a hex in a string and start 5 mins before for dummy read.
-                        for (i = 7; i > 0; i = i - 2) {            //change order and convert to integer
+                        for (int i = 7; i > 0; i = i - 2) {        //change order and convert to integer
                             ti[1] = tt[i];
                             ti[0] = tt[i - 1];
                             ti[2] = '\0';
@@ -370,9 +369,9 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                             }
                         } else
                             totime = 0;
-                        sprintf(tt, "%03x", (int)totime);  //convert to a hex in a string
-                                                           // get report time and convert
-                        for (i = 7; i > 0; i = i - 2) {    //change order and convert to integer
+                        sprintf(tt, "%03x", (int)totime);    //convert to a hex in a string
+                                                             // get report time and convert
+                        for (int i = 7; i > 0; i = i - 2) {  //change order and convert to integer
                             ti[1] = tt[i];
                             ti[0] = tt[i - 1];
                             ti[2] = '\0';
@@ -402,7 +401,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                             fromtime = 0;
                         }
                         sprintf(tt, "%03x", (int)fromtime);  //convert to a hex in a string
-                        for (i = 7; i > 0; i = i - 2) {      //change order and convert to integer
+                        for (int i = 7; i > 0; i = i - 2) {  //change order and convert to integer
                             ti[1] = tt[i];
                             ti[0] = tt[i - 1];
                             ti[2] = '\0';
@@ -429,8 +428,8 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                             }
                         } else
                             totime = 0;
-                        sprintf(tt, "%03x", (int)totime);  //convert to a hex in a string
-                        for (i = 7; i > 0; i = i - 2) {    //change order and convert to integer
+                        sprintf(tt, "%03x", (int)totime);    //convert to a hex in a string
+                        for (int i = 7; i > 0; i = i - 2) {  //change order and convert to integer
                             ti[1] = tt[i];
                             ti[0] = tt[i - 1];
                             ti[2] = '\0';
@@ -440,9 +439,9 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                         break;
 
                     case 19:  // $PASSWORD
-
-                        j = 0;
-                        for (i = 0; i < 12; i++) {
+                    {
+                        size_t j = 0;
+                        for (size_t i = 0; i < 12; i++) {
                             if (conf->Password[j] == '\0')
                                 fl[cc] = 0x88;
                             else {
@@ -453,9 +452,9 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                             cc++;
                         }
                         break;
-
+                    }
                     case 21:  // $SUSyID
-                        for (i = 0; i < 2; i++) {
+                        for (size_t i = 0; i < 2; i++) {
                             fl[cc] = unit[0]->SUSyID[i];
                             cc++;
                         }
@@ -479,21 +478,21 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                         break;
 
                     case 27:  // $TIMESET unknown setting
-                        for (i = 0; i < 4; i++) {
+                        for (int i = 0; i < 4; i++) {
                             fl[cc] = timeset[i];
                             cc++;
                         }
                         break;
 
                     case 29:  // $MYSUSYID
-                        for (i = 0; i < 2; i++) {
+                        for (int i = 0; i < 2; i++) {
                             fl[cc] = conf->MySUSyID[i];
                             cc++;
                         }
                         break;
 
                     case 30:  // $MYSERIAL
-                        for (i = 0; i < 4; i++) {
+                        for (int i = 0; i < 4; i++) {
                             fl[cc] = conf->MySerial[i];
                             cc++;
                         }
@@ -507,7 +506,8 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
 
             } while (strcmp(lineread, "$END") != 0);
             if (flag->debug == 1) {
-                int last_decoded;
+                int last_decoded = 0;
+                int j = 1;
 
                 printf(" cc=%d", cc);
                 printf("\n\n");
@@ -516,7 +516,6 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                 //Start byte
                 printf("\n7e ");
                 //Size and checkbit
-                j = 1;
                 auto len = (uint16_t)fl[j];
                 printf("%02x %02x                    size:              %d", fl[j], fl[j + 1], len);
                 ++j;
@@ -527,7 +526,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                 printf("                      checkbit:          %d", fl[j]);
                 printf("\n   ");
                 //Source Address
-                for (i = ++j; i < cc; i++) {
+                for (int i = ++j; i < cc; i++) {
                     if (i > j + 5) break;
                     printf("%02x ", fl[i]);
                 }
@@ -535,7 +534,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                 j = j + 5;
                 printf("\n   ");
                 //Destination Address
-                for (i = ++j; i < cc; i++) {
+                for (int i = ++j; i < cc; i++) {
                     if (i > j + 5) break;
                     printf("%02x ", fl[i]);
                 }
@@ -543,7 +542,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                 j = j + 5;
                 printf("\n   ");
                 //Destination Address
-                for (i = ++j; i < cc; i++) {
+                for (int i = ++j; i < cc; i++) {
                     if (i > j + 1) break;
                     printf("%02x ", fl[i]);
                 }
@@ -553,47 +552,47 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                 j++;
                 if (memcmp(fl + j, "\x7e\xff\x03\x60\x65", 5) == 0) {
                     printf("\n");
-                    for (i = j; i < cc; i++) {
+                    for (int i = j; i < cc; i++) {
                         if (i > j + 4) break;
                         printf("%02x ", fl[i]);
                     }
                     printf("             SMA Data2+ header: %02x:%02x:%02x:%02x:%02x", fl[j + 4], fl[j + 3], fl[j + 2], fl[j + 1], fl[j]);
                     j += 5;
                     printf("\n   ");
-                    for (i = ++j; i < cc; i++) {
+                    for (int i = ++j; i < cc; i++) {
                         if (i > j) break;
                         printf("%02x ", fl[i]);
                     }
                     printf("                      data packet size:  %02d", fl[j]);
                     printf("\n   ");
-                    for (i = ++j; i < cc; i++) {
+                    for (int i = ++j; i < cc; i++) {
                         if (i > j) break;
                         printf("%02x ", fl[i]);
                     }
                     printf("                      SUSYId:            %02x %02x", fl[j], fl[j + 1]);
                     j++;
                     printf("\n   ");
-                    for (i = ++j; i < cc; i++) {
+                    for (int i = ++j; i < cc; i++) {
                         if (i > j + 3) break;
                         printf("%02x ", fl[i]);
                     }
                     printf("             Serial:            %02x:%02x:%02x:%02x", fl[j + 3], fl[j + 2], fl[j + 1], fl[j]);
                     j = j + 3;
                     printf("\n   ");
-                    for (i = ++j; i < cc; i++) {
+                    for (int i = ++j; i < cc; i++) {
                         if (i > j + 1) break;
                         printf("%02x ", fl[i]);
                     }
                     printf("                   unknown:           %02x %02x", fl[j + 1], fl[j]);
                     j++;
                     printf("\n   ");
-                    for (i = ++j; i < cc; i++) {
+                    for (int i = ++j; i < cc; i++) {
                         if (i > j + 1) break;
                         printf("%02x ", fl[i]);
                     }
                     printf("                   MySUSId:           %02x:%02x", fl[j + 1], fl[j]);
                     printf("\n   ");
-                    for (i = ++j; i < cc; i++) {
+                    for (int i = ++j; i < cc; i++) {
                         if (i > j + 3) break;
                         printf("%02x ", fl[i]);
                     }
@@ -604,7 +603,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                 }
                 printf("\n   ");
                 j = 0;
-                for (i = last_decoded; i < cc; i++) {
+                for (int i = last_decoded; i < cc; i++) {
                     if (j % 16 == 0)
                         printf("\n   %08x: ", j);
                     printf("%02x ", fl[i]);
@@ -628,7 +627,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                     ;
             } else {
                 if (flag->debug == 1) printf("[%d] %s Extracting\n", (*linenum), debugdate());
-                cc = 0;
+                size_t cc = 0;
                 do {
                     lineread = strtok(nullptr, " ;");
                     //printf( "\nselect=%d", select_str(lineread));
@@ -650,7 +649,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                                     gap = 28;
                                 if ((data + 3)[0] == 0x00)
                                     gap = 28;
-                                for (i = 0; i < datalen; i += gap) {
+                                for (int i = 0; i < datalen; i += gap) {
                                     idate = ConvertStreamtoTime(data + i + 4, 4, &idate, &day, &month, &year, &hour, &minute, &second);
                                     ConvertStreamtoFloat(data + i + 8, 3, &currentpower_total);
                                     return_key = -1;
@@ -684,7 +683,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                             break;
 
                         case 7:  // extract 2nd address
-                            for (i = 0; i < 6; i++) {
+                            for (size_t i = 0; i < 6; i++) {
                                 conf->MyBTAddress[i] = received[26 + i];
                             }
                             if (flag->debug == 1)
@@ -741,8 +740,8 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                             printf("\n");
                             while (finished != 1) {
                                 if ((data = ReadStream(conf, flag, &readRecord, s, received, &rr, data, &datalen, last_sent, cc, &terminated, &togo)) != nullptr) {
-                                    j = 0;
-                                    for (i = 0; i < datalen; i++) {
+                                    size_t j = 0;
+                                    for (int i = 0; i < datalen; i++) {
                                         datarecord[j] = data[i];
                                         j++;
                                         if (j > 11) {
@@ -832,7 +831,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                                     gap = 28;
                                 if ((data + 3)[0] == 0x00)
                                     gap = 28;
-                                for (i = 0; i < datalen; i += gap) {
+                                for (int i = 0; i < datalen; i += gap) {
                                     idate = ConvertStreamtoTime(data + i + 4, 4, &idate, &day, &month, &year, &hour, &minute, &second);
                                     ConvertStreamtoFloat(data + i + 8, 3, &currentpower_total);
                                     return_key = -1;
@@ -870,7 +869,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                                 } else if (datalen > 0)
                                     printf("\nFailed to find key %02x:%02x", (data + 1)[0], (data + 2)[0]);
 
-                                for (i = 0; i < datalen; i += gap) {
+                                for (int i = 0; i < datalen; i += gap) {
                                     idate = ConvertStreamtoTime(data + i + 4, 4, &idate, &day, &month, &year, &hour, &minute, &second);
                                     return_key = -1;
                                     for (size_t j = 0; j < conf->num_return_keys; j++) {
@@ -1026,13 +1025,12 @@ int GetLine(const char *command, FILE *fp)
     char *line = nullptr;
     size_t len = 0;
     ssize_t read;
-    char *lineread;
     int linenum = 0;
     int found = 0;
 
     while ((read = getline(&line, &len, fp)) != -1) {  //read line from sma.in
         linenum++;
-        lineread = strtok(line, " ;");
+        auto *lineread = strtok(line, " ;");
         if (!strncmp(lineread, ":", 1)) {  //See if line is something we need to receive
             if (!strcmp(lineread + 1, command)) {
                 found = 1;

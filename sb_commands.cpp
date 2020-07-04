@@ -81,7 +81,7 @@ int UpdateLiveList(FlagType *flag, UnitType *unit, const char *format, time_t id
 int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE *fp, int *linenum, ArchDataType **archdatalist, int *archdatalen, LiveDataType **livedatalist, int *livedatalen)
 {
     char *line;
-    ssize_t read;
+    ssize_t read = 0;
     int cc = 0, rr = 0;
     int datalen = 0;
     int failedbluetooth = 0;
@@ -96,7 +96,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
     unsigned char tzhex[2] = {0};
     unsigned char timeset[4] = {0x30, 0xfe, 0x7e, 0x00};
     tm tm{};
-    int day, month, year, hour, minute, second;
+    int day = 0, month = 0, year = 0, hour = 0, minute = 0, second = 0;
     unsigned char fl[1024] = {0};
     unsigned char received[1024];
     unsigned char datarecord[1024];
@@ -110,17 +110,17 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
     char tt[10] = {48, 48, 48, 48, 48, 48, 48, 48, 48, 48};
     char ti[3];
     char *datastring;
-    float currentpower_total;
-    float dtotal;
-    float gtotal;
-    float ptotal;
-    float strength;
-    int found, already_read, terminated;
-    int gap, return_key, datalength = 0;
-    int pass_i, send_count;
-    int persistent;
-    int index;
-    unsigned long long inverter_serial;
+    float currentpower_total = 0.0;
+    float dtotal = 0.0;
+    float gtotal = 0.0;
+    float ptotal = 0.0;
+    float strength = 0.0;
+    int found = 0, already_read = 0, terminated = 0;
+    int gap = 0, return_key = 0, datalength = 0;
+    int pass_i = 0, send_count = 0;
+    int persistent = 0;
+    int index = 0;
+    unsigned long long inverter_serial = 0;
     char valuebuf[30];
 
     //convert address
@@ -627,7 +627,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                     ;
             } else {
                 if (flag->debug == 1) printf("[%d] %s Extracting\n", (*linenum), debugdate());
-                size_t cc = 0;
+                cc = 0;
                 do {
                     lineread = strtok(nullptr, " ;");
                     //printf( "\nselect=%d", select_str(lineread));

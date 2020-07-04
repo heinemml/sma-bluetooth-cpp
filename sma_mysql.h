@@ -2,8 +2,6 @@
 
 #include "sma_struct.h"
 
-extern MYSQL *conn;
-
 struct MySQLResult {
     MySQLResult(MYSQL_RES *res) : res(res) {}
     ~MySQLResult()
@@ -14,9 +12,17 @@ struct MySQLResult {
     MYSQL_RES *res;
 };
 
-void OpenMySqlDatabase(const char *, const char *, const char *, const char *);
-void CloseMySqlDatabase();
-MySQLResult ExecuteQuery(const char *query, bool debug = false);
+class MySQLConnection
+{
+public:
+    MySQLConnection(const char *server, const char *user, const char *password, const char *database);
+    ~MySQLConnection();
+    MySQLResult ExecuteQuery(const char *query, bool debug);
+
+private:
+    MYSQL *m_conn;
+};
+
 int install_mysql_tables(ConfType *, FlagType *, const char *);
 void update_mysql_tables(ConfType *, FlagType *);
 int check_schema(ConfType *, FlagType *, const char *);

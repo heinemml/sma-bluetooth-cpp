@@ -790,17 +790,16 @@ int auto_set_dates(ConfType *conf, FlagType *flag)
 /*  If there are no dates set - get last updated date and go from there to NOW */
 {
     if (flag->mysql == 1) {
-        OpenMySqlDatabase(conf->MySqlHost, conf->MySqlUser, conf->MySqlPwd, conf->MySqlDatabase);
+        auto mysql_connection = MySQLConnection(conf->MySqlHost, conf->MySqlUser, conf->MySqlPwd, conf->MySqlDatabase);
         //Get last updated value
         char SQLQUERY[200];
         sprintf(SQLQUERY, "SELECT DATE_FORMAT( DateTime, \"%%Y-%%m-%%d %%H:%%i:%%S\" ) FROM DayData WHERE 1 ORDER BY DateTime DESC LIMIT 1");
 
         MYSQL_ROW row;
-        if (auto result = ExecuteQuery(SQLQUERY, flag->debug); (row = mysql_fetch_row(result.res)))  //if there is a result, update the row
+        if (auto result = mysql_connection.ExecuteQuery(SQLQUERY, flag->debug); (row = mysql_fetch_row(result.res)))  //if there is a result, update the row
         {
             strcpy(conf->datefrom, row[0]);
         }
-        mysql_close(conn);
     }
 
     time_t curtime = time(nullptr);  //get time in seconds since epoch (1/1/1970)
@@ -810,10 +809,10 @@ int auto_set_dates(ConfType *conf, FlagType *flag)
     int year = loctime->tm_year + 1900;
     int hour = loctime->tm_hour;
     int minute = loctime->tm_min;
-    snprintf(conf->dateto, sizeof(conf->dateto), "%04d-%02d-%02d %02d:%02d:00", year, month, day, hour, minute);
+    snprintf(conf->dateto, DATELENGTH, "%04d-%02d-%02d %02d:%02d:00", year, month, day, hour, minute);
 
     if (strlen(conf->datefrom) == 0)
-        snprintf(conf->datefrom, sizeof(conf->datefrom), "%04d-%02d-%02d 00:00:00", year, month, day);
+        snprintf(conf->datefrom, DATELENGTH, "%04d-%02d-%02d 00:00:00", year, month, day);
 
     flag->daterange = 1;
     //if (flag->verbose == 1)
@@ -829,11 +828,11 @@ int is_light(ConfType *conf, FlagType *flag)
     MYSQL_ROW row;
     char SQLQUERY[200];
 
-    OpenMySqlDatabase(conf->MySqlHost, conf->MySqlUser, conf->MySqlPwd, conf->MySqlDatabase);
+    auto mysql_connection = MySQLConnection(conf->MySqlHost, conf->MySqlUser, conf->MySqlPwd, conf->MySqlDatabase);
     //Get Start of day value
     sprintf(SQLQUERY, "SELECT if(sunrise < NOW(),1,0) FROM Almanac WHERE date= DATE_FORMAT( NOW(), \"%%Y-%%m-%%d\" ) ");
 
-    if (auto result = ExecuteQuery(SQLQUERY, flag->debug); (row = mysql_fetch_row(result.res)))  //if there is a result, update the row
+    if (auto result = mysql_connection.ExecuteQuery(SQLQUERY, flag->debug); (row = mysql_fetch_row(result.res)))  //if there is a result, update the row
     {
         if (atoi((char *)row[0]) == 0) light = 0;
     }
@@ -841,14 +840,13 @@ int is_light(ConfType *conf, FlagType *flag)
     if (light) {
         sprintf(SQLQUERY, "SELECT if( dd.datetime > al.sunset,1,0) FROM DayData as dd left join Almanac as al on al.date=DATE(dd.datetime) and al.date=DATE(NOW()) WHERE 1 ORDER BY dd.datetime DESC LIMIT 1");
 
-        if (auto result = ExecuteQuery(SQLQUERY, flag->debug); (row = mysql_fetch_row(result.res)))  //if there is a result, update the row
+        if (auto result = mysql_connection.ExecuteQuery(SQLQUERY, flag->debug); (row = mysql_fetch_row(result.res)))  //if there is a result, update the row
         {
             if (atoi((char *)row[0]) == 1) light = 0;
         }
     }
-    if (flag->debug == 1) printf("Before close\n");
+    if (flag->debug == 1) printf("is light %x\n", light);
 
-    mysql_close(conn);
     return light;
 }
 
@@ -1592,13 +1590,12 @@ int main(int argc, char **argv)
 
     if ((flag.mysql == 1) && (error == 0)) {
         /* Connect to database */
-        OpenMySqlDatabase(conf.MySqlHost, conf.MySqlUser, conf.MySqlPwd, conf.MySqlDatabase);
+        auto mysql_connection = MySQLConnection(conf.MySqlHost, conf.MySqlUser, conf.MySqlPwd, conf.MySqlDatabase);
         for (int i = 1; i < archdatalen; i++)  //Start at 1 as the first record is a dummy
         {
             snprintf(SQLQUERY, sizeof(SQLQUERY), "INSERT INTO DayData ( DateTime, Inverter, Serial, CurrentPower, EtotalToday ) VALUES ( FROM_UNIXTIME(%ld),\'%s\',%lld,%0.f, %.3f ) ON DUPLICATE KEY UPDATE DateTime=Datetime, Inverter=VALUES(Inverter), Serial=VALUES(Serial), CurrentPower=VALUES(CurrentPower), EtotalToday=VALUES(EtotalToday)", (archdatalist + i)->date, (archdatalist + i)->inverter, (archdatalist + i)->serial, (archdatalist + i)->current_value, (archdatalist + i)->accum_value);
-            ExecuteQuery(SQLQUERY, flag.debug);
+            mysql_connection.ExecuteQuery(SQLQUERY, flag.debug);
         }
-        mysql_close(conn);
 
         if (flag.post == 1) {
 
@@ -1611,11 +1608,11 @@ int main(int argc, char **argv)
             printf("\nbefore update to PVOutput");
             getchar();
             /* Connect to database */
-            OpenMySqlDatabase(conf.MySqlHost, conf.MySqlUser, conf.MySqlPwd, conf.MySqlDatabase);
+            auto mysql_connection = MySQLConnection(conf.MySqlHost, conf.MySqlUser, conf.MySqlPwd, conf.MySqlDatabase);
             inverter_serial = (unit[0].Serial[0] << 24) + (unit[0].Serial[1] << 16) + (unit[0].Serial[2] << 8) + unit[0].Serial[3];
             snprintf(SQLQUERY, sizeof(SQLQUERY), R"(SELECT Value FROM LiveData WHERE Inverter = '%s' and Serial='%lld' and Description='Max Phase 1' ORDER BY DateTime DESC LIMIT 1)", unit[0].Inverter, inverter_serial);
 
-            if (auto result = ExecuteQuery(SQLQUERY, flag.debug); mysql_num_rows(result.res) == 1) {
+            if (auto result = mysql_connection.ExecuteQuery(SQLQUERY, flag.debug); mysql_num_rows(result.res) == 1) {
                 if ((row = mysql_fetch_row(result.res))) {
                     max_output = atoi(row[0]) * 1.2;
                 }
@@ -1624,7 +1621,7 @@ int main(int argc, char **argv)
             snprintf(SQLQUERY, sizeof(SQLQUERY), R"(SELECT DATE_FORMAT(dd1.DateTime,'%%Y%%m%%d'), DATE_FORMAT(dd1.DateTime,'%%H:%%i'), ROUND((dd1.ETotalToday-dd2.EtotalToday)*1000), if( dd1.CurrentPower < %d ,dd1.CurrentPower, %d ), dd1.DateTime FROM DayData as dd1 join DayData as dd2 on dd2.DateTime=DATE_FORMAT(dd1.DateTime,'%%Y-%%m-%%d 00:00:00') WHERE dd1.DateTime>=Date_Sub(CURDATE(),INTERVAL 13 DAY) and dd1.PVOutput IS NULL and dd1.CurrentPower>0 ORDER BY dd1.DateTime ASC)", max_output, max_output);
 
             batch_count = 0;
-            auto result = ExecuteQuery(SQLQUERY, flag.debug);
+            auto result = mysql_connection.ExecuteQuery(SQLQUERY, flag.debug);
             if (mysql_num_rows(result.res) == 1) {
                 if ((row = mysql_fetch_row(result.res)))  //Need to update these
                 {
@@ -1640,7 +1637,7 @@ int main(int argc, char **argv)
                             curl_easy_cleanup(curl);
                             if (result == 0) {
                                 snprintf(SQLQUERY, sizeof(SQLQUERY), "UPDATE DayData  set PVOutput=NOW() WHERE DateTime=\"%s\"  ", row[4]);
-                                ExecuteQuery(SQLQUERY, flag.debug);
+                                mysql_connection.ExecuteQuery(SQLQUERY, flag.debug);
                             }
                         }
                     }
@@ -1667,12 +1664,12 @@ int main(int argc, char **argv)
                             curl_easy_cleanup(curl);
                             if (curl_result == 0) {
                                 snprintf(SQLQUERY, sizeof(SQLQUERY), R"(SELECT DATE_FORMAT(dd1.DateTime,'%%Y%%m%%d'), DATE_FORMAT(dd1.DateTime,'%%H:%%i'), ROUND((dd1.ETotalToday-dd2.EtotalToday)*1000), dd1.CurrentPower, dd1.DateTime FROM DayData as dd1 join DayData as dd2 on dd2.DateTime=DATE_FORMAT(dd1.DateTime,'%%Y-%%m-%%d 00:00:00') WHERE dd1.DateTime>=Date_Sub(CURDATE(),INTERVAL 13 DAY) and dd1.PVOutput IS NULL and dd1.CurrentPower>0 ORDER BY dd1.DateTime ASC limit %d)", batch_count);
-                                auto result_to_update = ExecuteQuery(SQLQUERY, flag.debug);
+                                auto result_to_update = mysql_connection.ExecuteQuery(SQLQUERY, flag.debug);
 
                                 while ((row1 = mysql_fetch_row(result_to_update.res)))  //Need to update these
                                 {
                                     snprintf(SQLQUERY, sizeof(SQLQUERY), "UPDATE DayData set PVOutput=NOW() WHERE DateTime=\"%s\"  ", row1[4]);
-                                    ExecuteQuery(SQLQUERY, flag.debug);
+                                    mysql_connection.ExecuteQuery(SQLQUERY, flag.debug);
                                 }
                             } else
                                 break;
@@ -1694,18 +1691,17 @@ int main(int argc, char **argv)
                         curl_easy_cleanup(curl);
                         if (result == 0) {
                             snprintf(SQLQUERY, sizeof(SQLQUERY), R"(SELECT DATE_FORMAT(dd1.DateTime,'%%Y%%m%%d'), DATE_FORMAT(dd1.DateTime,'%%H:%%i'), ROUND((dd1.ETotalToday-dd2.EtotalToday)*1000), dd1.CurrentPower, dd1.DateTime FROM DayData as dd1 join DayData as dd2 on dd2.DateTime=DATE_FORMAT(dd1.DateTime,'%%Y-%%m-%%d 00:00:00') WHERE dd1.DateTime>=Date_Sub(CURDATE(),INTERVAL 1 DAY) and dd1.PVOutput IS NULL and dd1.CurrentPower>0 ORDER BY dd1.DateTime ASC limit %d)", batch_count);
-                            auto result = ExecuteQuery(SQLQUERY, flag.debug);
+                            auto result = mysql_connection.ExecuteQuery(SQLQUERY, flag.debug);
                             while ((row1 = mysql_fetch_row(result.res)))  //Need to update these
                             {
                                 snprintf(SQLQUERY, sizeof(SQLQUERY), "UPDATE DayData set PVOutput=NOW() WHERE DateTime=\"%s\"  ", row1[4]);
-                                ExecuteQuery(SQLQUERY, flag.debug);
+                                mysql_connection.ExecuteQuery(SQLQUERY, flag.debug);
                             }
                         }
                     }
                     batch_count = 0;
                 }
             }
-            mysql_close(conn);
         }
     }
 

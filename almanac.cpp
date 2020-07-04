@@ -198,15 +198,15 @@ int todays_almanac(ConfType *conf, int debug)
     int found = 0;
     char SQLQUERY[200];
 
-    OpenMySqlDatabase(conf->MySqlHost, conf->MySqlUser, conf->MySqlPwd, conf->MySqlDatabase);
+    auto mysql_connection = MySQLConnection(conf->MySqlHost, conf->MySqlUser, conf->MySqlPwd, conf->MySqlDatabase);
     //Get Start of day value
     sprintf(SQLQUERY, "SELECT sunrise FROM Almanac WHERE date=DATE_FORMAT( NOW(), \"%%Y-%%m-%%d\" ) ");
-    auto result = ExecuteQuery(SQLQUERY, debug);
+    auto result = mysql_connection.ExecuteQuery(SQLQUERY, debug);
     if (mysql_fetch_row(result.res))  //if there is a result, update the row
     {
         found = 1;
     }
-    mysql_close(conn);
+
     return found;
 }
 
@@ -214,9 +214,8 @@ void update_almanac(ConfType *conf, char *sunrise, char *sunset, int debug)
 {
     char SQLQUERY[200];
 
-    OpenMySqlDatabase(conf->MySqlHost, conf->MySqlUser, conf->MySqlPwd, conf->MySqlDatabase);
+    auto mysql_connection = MySQLConnection(conf->MySqlHost, conf->MySqlUser, conf->MySqlPwd, conf->MySqlDatabase);
     //Get Start of day value
     sprintf(SQLQUERY, R"(INSERT INTO Almanac SET sunrise=CONCAT(DATE_FORMAT( NOW(), "%%Y-%%m-%%d "),"%s"), sunset=CONCAT(DATE_FORMAT( NOW(), "%%Y-%%m-%%d "),"%s" ), date=NOW() )", sunrise, sunset);
-    ExecuteQuery(SQLQUERY, debug);
-    mysql_close(conn);
+    mysql_connection.ExecuteQuery(SQLQUERY, debug);
 }

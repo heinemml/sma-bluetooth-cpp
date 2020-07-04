@@ -56,11 +56,11 @@ void sma_repost(ConfType *conf, FlagType *flag)
     float power;
 
     /* Connect to database */
-    OpenMySqlDatabase(conf->MySqlHost, conf->MySqlUser, conf->MySqlPwd, conf->MySqlDatabase);
+    auto mysql_connection = MySQLConnection(conf->MySqlHost, conf->MySqlUser, conf->MySqlPwd, conf->MySqlDatabase);
     //Get Start of day value
     printf(R"(SELECT DATE_FORMAT( dt1.DateTime, "%%Y%%m%%d" ), round((dt1.ETotalToday*1000-dt2.ETotalToday*1000),0) FROM DayData as dt1 join DayData as dt2 on dt2.DateTime = DATE_SUB( dt1.DateTime, interval 1 day ) WHERE dt1.DateTime LIKE "%%-%%-%% 23:55:00" ' ORDER BY dt1.DateTime DESC)");
     sprintf(SQLQUERY, R"(SELECT DATE_FORMAT( dt1.DateTime, "%%Y%%m%%d" ), round((dt1.ETotalToday*1000-dt2.ETotalToday*1000),0) FROM DayData as dt1 join DayData as dt2 on dt2.DateTime = DATE_SUB( dt1.DateTime, interval 1 day ) WHERE dt1.DateTime LIKE "%%-%%-%% 23:55:00" ORDER BY dt1.DateTime DESC)");
-    auto result = ExecuteQuery(SQLQUERY, flag->debug);
+    auto result = mysql_connection.ExecuteQuery(SQLQUERY, flag->debug);
     while ((row = mysql_fetch_row(result.res)))  //if there is a result, update the row
     {
     startforwait:
@@ -126,5 +126,4 @@ void sma_repost(ConfType *conf, FlagType *flag)
         }
         fclose(fp);
     }
-    mysql_close(conn);
 }

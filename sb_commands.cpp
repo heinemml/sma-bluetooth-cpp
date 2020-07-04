@@ -1005,9 +1005,8 @@ void InverterCommand(const char *command, ConfType *conf, FlagType *flag, UnitTy
     printf("Command: %s\n", command);
     printf("================\n");
 
-    int linenum;
-    if ((linenum = GetLine(command, fp)) > 0) {
-        if (ProcessCommand(conf, flag, unit, s, fp, &linenum, archdatalist, archdatalen, livedatalist, livedatalen) < 0) {
+    if (auto line_num = GetLine(command, fp); line_num > 0) {
+        if (ProcessCommand(conf, flag, unit, s, fp, &line_num, archdatalist, archdatalen, livedatalist, livedatalen) < 0) {
             printf("\nError need to do something");
             getchar();
         }
@@ -1024,16 +1023,15 @@ int GetLine(const char *command, FILE *fp)
 {
     char *line = nullptr;
     size_t len = 0;
-    ssize_t read;
-    int linenum = 0;
-    int found = 0;
+    int line_num = 0;
+    int found_line = 0;
 
-    while ((read = getline(&line, &len, fp)) != -1) {  //read line from sma.in
-        linenum++;
-        auto *lineread = strtok(line, " ;");
-        if (!strncmp(lineread, ":", 1)) {  //See if line is something we need to receive
-            if (!strcmp(lineread + 1, command)) {
-                found = 1;
+    while (getline(&line, &len, fp) != -1) {  //read line from sma.in
+        line_num++;
+        auto *splitted_line = strtok(line, " ;");  // cuts ":command $END" to ":command"
+        if (splitted_line[0] == ':') {             // See if line is command we are looking for
+            if (strcmp(splitted_line + 1, command) == 0) {
+                found_line = line_num;
                 break;
             }
         }
@@ -1041,8 +1039,5 @@ int GetLine(const char *command, FILE *fp)
 
     free(line);
 
-    if (!found)
-        return 0;
-
-    return linenum;
+    return found_line;
 }

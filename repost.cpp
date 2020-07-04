@@ -45,7 +45,7 @@ void sma_repost(ConfType *conf, FlagType *flag)
 {
     FILE *fp;
     CURL *curl;
-    CURLcode result;
+    CURLcode curl_result;
     char buf[1024], buf1[400];
     char SQLQUERY[1000];
     char compurl[400];
@@ -60,9 +60,8 @@ void sma_repost(ConfType *conf, FlagType *flag)
     //Get Start of day value
     printf(R"(SELECT DATE_FORMAT( dt1.DateTime, "%%Y%%m%%d" ), round((dt1.ETotalToday*1000-dt2.ETotalToday*1000),0) FROM DayData as dt1 join DayData as dt2 on dt2.DateTime = DATE_SUB( dt1.DateTime, interval 1 day ) WHERE dt1.DateTime LIKE "%%-%%-%% 23:55:00" ' ORDER BY dt1.DateTime DESC)");
     sprintf(SQLQUERY, R"(SELECT DATE_FORMAT( dt1.DateTime, "%%Y%%m%%d" ), round((dt1.ETotalToday*1000-dt2.ETotalToday*1000),0) FROM DayData as dt1 join DayData as dt2 on dt2.DateTime = DATE_SUB( dt1.DateTime, interval 1 day ) WHERE dt1.DateTime LIKE "%%-%%-%% 23:55:00" ORDER BY dt1.DateTime DESC)");
-    if (flag->debug == 1) printf("%s\n", SQLQUERY);
-    DoQuery(SQLQUERY);
-    while ((row = mysql_fetch_row(res)))  //if there is a result, update the row
+    auto result = ExecuteQuery(SQLQUERY, flag->debug);
+    while ((row = mysql_fetch_row(result.res)))  //if there is a result, update the row
     {
     startforwait:
         fp = fopen("/tmp/curl_output", "w+");
@@ -76,26 +75,26 @@ void sma_repost(ConfType *conf, FlagType *flag)
             curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
             curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
             //curl_easy_setopt(curl, CURLOPT_FAILONERROR, compurl);
-            result = curl_easy_perform(curl);
-            if (flag->debug == 1) printf("result = %d\n", result);
+            curl_result = curl_easy_perform(curl);
+            if (flag->debug == 1) printf("result = %d\n", curl_result);
             rewind(fp);
             fgets(buf, sizeof(buf), fp);
-            result = static_cast<CURLcode>(sscanf(buf, "Bad request %s has no outputs between the requested period", buf1));
-            printf("return=%d buf1=%s\n", result, buf1);
-            if (result > 0) {
+            curl_result = static_cast<CURLcode>(sscanf(buf, "Bad request %s has no outputs between the requested period", buf1));
+            printf("return=%d buf1=%s\n", curl_result, buf1);
+            if (curl_result > 0) {
                 update_data = 1;
                 printf("test\n");
             } else {
                 printf("buf=%s here 1.\n", buf);
-                result = static_cast<CURLcode>(sscanf(buf, "Forbidden 403: Exceeded 60 requests %s", buf1));
-                if (result > 0) {
+                curl_result = static_cast<CURLcode>(sscanf(buf, "Forbidden 403: Exceeded 60 requests %s", buf1));
+                if (curl_result > 0) {
                     printf("Too Many requests in 1hr sleeping for 1hr\n");
                     fclose(fp);
                     sleep(3600);
                     goto startforwait;
                 }
 
-                printf("return=%d buf1=%s\n", result, buf1);
+                printf("return=%d buf1=%s\n", curl_result, buf1);
                 if (sscanf(buf, "%f,%s", &power, buf1) > 0) {
                     printf("Power %f\n", power);
                     if (power != dtotal) {
@@ -112,11 +111,11 @@ void sma_repost(ConfType *conf, FlagType *flag)
                     if (flag->debug == 1) printf("url = %s\n", compurl);
                     curl_easy_setopt(curl, CURLOPT_URL, compurl);
                     curl_easy_setopt(curl, CURLOPT_FAILONERROR, compurl);
-                    result = curl_easy_perform(curl);
+                    curl_result = curl_easy_perform(curl);
                     sleep(1);
-                    if (flag->debug == 1) printf("result = %d\n", result);
+                    if (flag->debug == 1) printf("result = %d\n", curl_result);
                     curl_easy_cleanup(curl);
-                    if (result == 0) {
+                    if (curl_result == 0) {
                         sprintf(SQLQUERY, "UPDATE DayData set PVOutput=NOW() WHERE DateTime=\"%s235500\"  ", row[0]);
                         if (flag->debug == 1) printf("%s\n", SQLQUERY);
                         //DoQuery(SQLQUERY);

@@ -3,16 +3,21 @@
 #include "sma_struct.h"
 
 extern MYSQL *conn;
-extern MYSQL_RES *res;
-extern MYSQL_RES *res1;
-extern MYSQL_RES *res2;
+
+struct MySQLResult {
+    MySQLResult(MYSQL_RES *res) : res(res) {}
+    ~MySQLResult()
+    {
+        if (res)
+            mysql_free_result(res);
+    }
+    MYSQL_RES *res;
+};
 
 void OpenMySqlDatabase(const char *, const char *, const char *, const char *);
 void CloseMySqlDatabase();
-int DoQuery(const char *);
-int DoQuery1(const char *);
-int DoQuery2(const char *);
+MySQLResult ExecuteQuery(const char *query, bool debug = false);
 int install_mysql_tables(ConfType *, FlagType *, const char *);
 void update_mysql_tables(ConfType *, FlagType *);
 int check_schema(ConfType *, FlagType *, const char *);
-void live_mysql(ConfType, FlagType, LiveDataType *, int);
+void live_mysql(ConfType, bool debug, LiveDataType *, int);

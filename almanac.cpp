@@ -196,15 +196,13 @@ int todays_almanac(ConfType *conf, int debug)
 /*  Check if sunset and sunrise have been set today */
 {
     int found = 0;
-    MYSQL_ROW row;
     char SQLQUERY[200];
 
     OpenMySqlDatabase(conf->MySqlHost, conf->MySqlUser, conf->MySqlPwd, conf->MySqlDatabase);
     //Get Start of day value
     sprintf(SQLQUERY, "SELECT sunrise FROM Almanac WHERE date=DATE_FORMAT( NOW(), \"%%Y-%%m-%%d\" ) ");
-    if (debug == 1) printf("%s\n", SQLQUERY);
-    DoQuery(SQLQUERY);
-    if ((row = mysql_fetch_row(res)))  //if there is a result, update the row
+    auto result = ExecuteQuery(SQLQUERY, debug);
+    if (mysql_fetch_row(result.res))  //if there is a result, update the row
     {
         found = 1;
     }
@@ -219,7 +217,6 @@ void update_almanac(ConfType *conf, char *sunrise, char *sunset, int debug)
     OpenMySqlDatabase(conf->MySqlHost, conf->MySqlUser, conf->MySqlPwd, conf->MySqlDatabase);
     //Get Start of day value
     sprintf(SQLQUERY, R"(INSERT INTO Almanac SET sunrise=CONCAT(DATE_FORMAT( NOW(), "%%Y-%%m-%%d "),"%s"), sunset=CONCAT(DATE_FORMAT( NOW(), "%%Y-%%m-%%d "),"%s" ), date=NOW() )", sunrise, sunset);
-    if (debug == 1) printf("%s\n", SQLQUERY);
-    DoQuery(SQLQUERY);
+    ExecuteQuery(SQLQUERY, debug);
     mysql_close(conn);
 }

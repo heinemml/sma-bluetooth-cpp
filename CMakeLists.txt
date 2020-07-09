@@ -17,7 +17,7 @@ target_link_libraries(bluez INTERFACE bluetooth Threads::Threads)
 add_library(mysql INTERFACE)
 target_link_libraries(mysql INTERFACE mysqlclient Threads::Threads z m dl)
 
-add_executable(sma_bluetooth
+set(SOURCES
         almanac.cpp
         repost.cpp
         sb_commands.cpp
@@ -25,7 +25,9 @@ add_executable(sma_bluetooth
         smatool.cpp
         )
 
-target_link_libraries(sma_bluetooth mysqlclient bluez mysql curl LibXml2::LibXml2)
+add_executable(smatoolpp ${SOURCES})
+
+target_link_libraries(smatoolpp mysqlclient bluez mysql curl LibXml2::LibXml2)
 
 configure_file(sma.in.new ${CMAKE_CURRENT_BINARY_DIR}/sma.in COPYONLY)
 configure_file(smatool.xml ${CMAKE_CURRENT_BINARY_DIR}/smatool.xml COPYONLY)

@@ -8,6 +8,7 @@ A C program to connect to sma inverters and export data.
 * libbluez
 * libxml2
 * libmysqlclient
+* libfmt
 
 ### debian/ubuntu
 
@@ -15,7 +16,7 @@ To install dependencies on Debian/Ubuntu:
 
 ```
 sudo apt install libcurl4-openssl-dev libbluetooth-dev \
-                 libxml2-dev libmysqlclient-dev
+                 libxml2-dev libmysqlclient-dev libfmt-dev
 ```
 
 ## build

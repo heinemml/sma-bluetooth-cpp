@@ -1,5 +1,7 @@
 #include "sma_mysql.h"
 
+#include <fmt/format.h>
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -11,7 +13,7 @@ MySQLConnection::MySQLConnection(const char *server, const char *user, const cha
     /* Connect to database */
     if (!mysql_real_connect(m_conn, server,
                             user, password, database, 0, nullptr, 0)) {
-        fprintf(stderr, "%s\n", mysql_error(m_conn));
+        fmt::print(stderr, "{}\n", mysql_error(m_conn));
         exit(0);
     }
 }
@@ -24,13 +26,25 @@ MySQLConnection::~MySQLConnection()
 MySQLResult MySQLConnection::ExecuteQuery(const char *query, bool debug)
 {
     if (debug)
-        printf("%s\n", query);
+        fmt::print("{}\n", query);
 
     if (mysql_real_query(m_conn, query, strlen(query))) {
-        fprintf(stderr, "%s\n", mysql_error(m_conn));
+        fmt::print(stderr, "{}\n", mysql_error(m_conn));
     }
 
-    return mysql_store_result(m_conn);
+    return MySQLResult{mysql_store_result(m_conn)};
+}
+
+MySQLResult MySQLConnection::ExecuteQuery(const std::string &query, bool debug)
+{
+    if (debug)
+        fmt::print("{}\n", query);
+
+    if (mysql_real_query(m_conn, query.c_str(), query.size())) {
+        fmt::print(stderr, "{}\n", mysql_error(m_conn));
+    }
+
+    return MySQLResult{mysql_store_result(m_conn)};
 }
 
 int install_mysql_tables(ConfType *conf, FlagType *flag, const char *SCHEMA)
@@ -38,12 +52,10 @@ int install_mysql_tables(ConfType *conf, FlagType *flag, const char *SCHEMA)
 {
     int found = 0;
     MYSQL_ROW row;
-    char SQLQUERY[1000];
 
     auto mysql_connection = MySQLConnection(conf->MySqlHost, conf->MySqlUser, conf->MySqlPwd, conf->MySqlDatabase);
     //Get Start of day value
-    sprintf(SQLQUERY, "SHOW DATABASES");
-    auto result = mysql_connection.ExecuteQuery(SQLQUERY, flag->debug);
+    auto result = mysql_connection.ExecuteQuery("SHOW DATABASES", flag->debug);
     while ((row = mysql_fetch_row(result.res)))  //if there is a result, update the row
     {
         if (strcmp(row[0], conf->MySqlDatabase) == 0) {
@@ -53,26 +65,34 @@ int install_mysql_tables(ConfType *conf, FlagType *flag, const char *SCHEMA)
     }
 
     if (found == 0) {
-        sprintf(SQLQUERY, "CREATE DATABASE IF NOT EXISTS %s", conf->MySqlDatabase);
-        mysql_connection.ExecuteQuery(SQLQUERY, flag->debug);
 
-        sprintf(SQLQUERY, "USE  %s", conf->MySqlDatabase);
-        mysql_connection.ExecuteQuery(SQLQUERY, flag->debug);
+        {
+            const auto query = fmt::format("CREATE DATABASE IF NOT EXISTS {}", conf->MySqlDatabase);
+            mysql_connection.ExecuteQuery(query, flag->debug);
+        }
 
-        sprintf(SQLQUERY,
+        {
+            const auto query = fmt::format("USE  {}", conf->MySqlDatabase);
+            mysql_connection.ExecuteQuery(query, flag->debug);
+        }
+
+        {
+            const auto query =
                 "CREATE TABLE `Almanac` ( `id` bigint(20) NOT NULL \
-          AUTO_INCREMENT, \
-          `date` date NOT NULL,\
-          `sunrise` datetime DEFAULT NULL,\
-          `sunset` datetime DEFAULT NULL,\
-          `CHANGETIME` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, \
-           PRIMARY KEY (`id`),\
-           UNIQUE KEY `date` (`date`)\
-           ) ENGINE=MyISAM");
+                  AUTO_INCREMENT, \
+                  `date` date NOT NULL,\
+                  `sunrise` datetime DEFAULT NULL,\
+                  `sunset` datetime DEFAULT NULL,\
+                  `CHANGETIME` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, \
+                   PRIMARY KEY (`id`),\
+                   UNIQUE KEY `date` (`date`)\
+                   ) ENGINE=MyISAM";
 
-        mysql_connection.ExecuteQuery(SQLQUERY, flag->debug);
+            mysql_connection.ExecuteQuery(query, flag->debug);
+        }
 
-        sprintf(SQLQUERY,
+        {
+            const auto query =
                 "CREATE TABLE `DayData` ( \
            `DateTime` datetime NOT NULL, \
            `Inverter` varchar(30) NOT NULL, \
@@ -83,11 +103,13 @@ int install_mysql_tables(ConfType *conf, FlagType *flag, const char *SCHEMA)
            `PVOutput` datetime DEFAULT NULL, \
            `CHANGETIME` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE CURRENT_TIMESTAMP, \
            PRIMARY KEY (`DateTime`,`Inverter`,`Serial`) \
-           ) ENGINE=MyISAM");
+           ) ENGINE=MyISAM";
 
-        mysql_connection.ExecuteQuery(SQLQUERY, flag->debug);
+            mysql_connection.ExecuteQuery(query, flag->debug);
+        }
 
-        sprintf(SQLQUERY,
+        {
+            const auto query =
                 "CREATE TABLE `LiveData` ( \
            `id` bigint(20) NOT NULL  AUTO_INCREMENT, \
            `DateTime` datetime NOT NULL, \
@@ -99,21 +121,26 @@ int install_mysql_tables(ConfType *conf, FlagType *flag, const char *SCHEMA)
            `CHANGETIME` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE CURRENT_TIMESTAMP, \
            PRIMARY KEY (`id`), \
            UNIQUE KEY 'DateTime'(`DateTime`,`Inverter`,`Serial`,`Description`) \
-           ) ENGINE=MyISAM");
-        mysql_connection.ExecuteQuery(SQLQUERY, flag->debug);
+           ) ENGINE=MyISAM";
+            mysql_connection.ExecuteQuery(query, flag->debug);
+        }
 
-        sprintf(SQLQUERY,
+        {
+            const auto query =
                 "CREATE TABLE `settings` ( \
            `value` varchar(128) NOT NULL, \
            `data` varchar(500) NOT NULL, \
            PRIMARY KEY (`value`) \
-           ) ENGINE=MyISAM");
+           ) ENGINE=MyISAM";
 
-        mysql_connection.ExecuteQuery(SQLQUERY, flag->debug);
+            mysql_connection.ExecuteQuery(query, flag->debug);
+        }
 
-        sprintf(SQLQUERY, R"(INSERT INTO `settings` SET `value` = 'schema', `data` = '%s' )", SCHEMA);
+        {
+            const auto query = fmt::format(R"(INSERT INTO `settings` SET `value` = 'schema', `data` = '%s' )", SCHEMA);
 
-        mysql_connection.ExecuteQuery(SQLQUERY, flag->debug);
+            mysql_connection.ExecuteQuery(query, flag->debug);
+        }
     }
 
     return found;
@@ -131,19 +158,15 @@ void update_mysql_tables(ConfType *conf, FlagType *flag)
     mysql_connection.ExecuteQuery(SQLQUERY, flag->debug);
 
     /*Check current schema value*/
-    sprintf(SQLQUERY, "SELECT data FROM settings WHERE value=\'schema\' ");
-
-    if (auto result = mysql_connection.ExecuteQuery(SQLQUERY, flag->debug); (row = mysql_fetch_row(result.res)))  //if there is a result, update the row
+    if (auto result = mysql_connection.ExecuteQuery("SELECT data FROM settings WHERE value=\'schema\'", flag->debug);
+        (row = mysql_fetch_row(result.res)))  //if there is a result, update the row
     {
         schema_value = atoi(row[0]);
     }
 
     if (schema_value == 1) {  //Upgrade from 1 to 2
-        sprintf(SQLQUERY, "ALTER TABLE `DayData` CHANGE `ETotalToday` `ETotalToday` DECIMAL(10,3) NULL DEFAULT NULL");
-        mysql_connection.ExecuteQuery(SQLQUERY, flag->debug);
-
-        sprintf(SQLQUERY, "UPDATE `settings` SET `value` = \'schema\', `data` = 2 ");
-        mysql_connection.ExecuteQuery(SQLQUERY, flag->debug);
+        mysql_connection.ExecuteQuery("ALTER TABLE `DayData` CHANGE `ETotalToday` `ETotalToday` DECIMAL(10,3) NULL DEFAULT NULL", flag->debug);
+        mysql_connection.ExecuteQuery("UPDATE `settings` SET `value` = \'schema\', `data` = 2", flag->debug);
     }
     /*Check current schema value*/
 
@@ -154,34 +177,38 @@ void update_mysql_tables(ConfType *conf, FlagType *flag)
     }
 
     if (schema_value == 2) {  //Upgrade from 2 to 3
-        sprintf(SQLQUERY,
-                "CREATE TABLE `LiveData` ( \
-		`id` BIGINT NOT NULL AUTO_INCREMENT , \
+        const auto query =
+            "CREATE TABLE `LiveData` ( \
+		`   id` BIGINT NOT NULL AUTO_INCREMENT , \
            	`DateTime` datetime NOT NULL, \
            	`Inverter` varchar(10) NOT NULL, \
            	`Serial` varchar(40) NOT NULL, \
-		`Description` char(20) NOT NULL , \
-		`Value` INT NOT NULL , \
-		`Units` char(20) NOT NULL , \
+            `Description` char(20) NOT NULL , \
+            `Value` INT NOT NULL , \
+            `Units` char(20) NOT NULL , \
            	`CHANGETIME` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE CURRENT_TIMESTAMP, \
            	UNIQUE KEY (`DateTime`,`Inverter`,`Serial`,`Description`), \
-		PRIMARY KEY ( `id` ) \
-		) ENGINE = MYISAM");
-        mysql_connection.ExecuteQuery(SQLQUERY, flag->debug);
+		    PRIMARY KEY ( `id` ) \
+		    ) ENGINE = MYISAM";
+        mysql_connection.ExecuteQuery(query, flag->debug);
 
-        sprintf(SQLQUERY, "UPDATE `settings` SET `value` = \'schema\', `data` = 3 ");
-        mysql_connection.ExecuteQuery(SQLQUERY, flag->debug);
+        mysql_connection.ExecuteQuery("UPDATE `settings` SET `value` = \'schema\', `data` = 3", flag->debug);
     }
 
     if (schema_value == 3) {  //Upgrade from 3 to 4
-        sprintf(SQLQUERY, "ALTER TABLE `DayData` CHANGE `Inverter` `Inverter` varchar(30) NOT NULL, CHANGE `Serial` `Serial` varchar(40) NOT NULL");
-        mysql_connection.ExecuteQuery(SQLQUERY, flag->debug);
+        {
+            const auto query = "ALTER TABLE `DayData` CHANGE `Inverter` `Inverter` varchar(30) NOT NULL, CHANGE `Serial` `Serial` varchar(40) NOT NULL";
+            mysql_connection.ExecuteQuery(query, flag->debug);
+        }
+        {
+            const auto query = "ALTER TABLE `LiveData` CHANGE `Inverter` `Inverter` varchar(30) NOT NULL, CHANGE `Serial` `Serial` varchar(40) NOT NULL, CHANGE `Description` `Description` varchar(30) NOT NULL, CHANGE `Value` `Value` varchar(30), CHANGE `Units` `Units` varchar(20) NULL DEFAULT NULL ";
+            mysql_connection.ExecuteQuery(query, flag->debug);
+        }
 
-        sprintf(SQLQUERY, "ALTER TABLE `LiveData` CHANGE `Inverter` `Inverter` varchar(30) NOT NULL, CHANGE `Serial` `Serial` varchar(40) NOT NULL, CHANGE `Description` `Description` varchar(30) NOT NULL, CHANGE `Value` `Value` varchar(30), CHANGE `Units` `Units` varchar(20) NULL DEFAULT NULL ");
-        mysql_connection.ExecuteQuery(SQLQUERY, flag->debug);
-
-        sprintf(SQLQUERY, "UPDATE `settings` SET `value` = \'schema\', `data` = 4 ");
-        mysql_connection.ExecuteQuery(SQLQUERY, flag->debug);
+        {
+            const auto query = "UPDATE `settings` SET `value` = \'schema\', `data` = 4";
+            mysql_connection.ExecuteQuery(query, flag->debug);
+        }
     }
 }
 
@@ -190,20 +217,20 @@ int check_schema(ConfType *conf, FlagType *flag, const char *SCHEMA)
 {
     int found = 0;
     MYSQL_ROW row;
-    char SQLQUERY[200];
 
     auto mysql_connection = MySQLConnection(conf->MySqlHost, conf->MySqlUser, conf->MySqlPwd, conf->MySqlDatabase);
     //Get Start of day value
-    sprintf(SQLQUERY, "SELECT data FROM settings WHERE value=\'schema\' ");
 
-    if (auto result = mysql_connection.ExecuteQuery(SQLQUERY, flag->debug); (row = mysql_fetch_row(result.res)))  //if there is a result, update the row
+    if (auto result = mysql_connection.ExecuteQuery("SELECT data FROM settings WHERE value=\'schema\'",
+                                                    flag->debug);
+        (row = mysql_fetch_row(result.res)))  //if there is a result, update the row
     {
         if (strcmp(row[0], SCHEMA) == 0)
             found = 1;
     }
 
     if (found != 1) {
-        printf("Please Update database schema use --UPDATE\n");
+        fmt::print("Please Update database schema use --UPDATE\n");
     }
     return found;
 }
@@ -212,15 +239,11 @@ void live_mysql(ConfType conf, bool debug, LiveDataType *livedatalist, int lived
 /* Live inverter values mysql update */
 {
     struct tm *loctime;
-    char SQLQUERY[2000];
-    char datetime[20];
     int day, month, year, hour, minute, second;
-    int live_data = 1;
-    int i;
     MYSQL_ROW row;
 
     auto mysql_connection = MySQLConnection(conf.MySqlHost, conf.MySqlUser, conf.MySqlPwd, conf.MySqlDatabase);
-    for (i = 0; i < livedatalen; i++) {
+    for (int i = 0; i < livedatalen; i++) {
         loctime = localtime(&(livedatalist + i)->date);
         day = loctime->tm_mday;
         month = loctime->tm_mon + 1;
@@ -229,21 +252,22 @@ void live_mysql(ConfType conf, bool debug, LiveDataType *livedatalist, int lived
         minute = loctime->tm_min;
         second = loctime->tm_sec;
 
-        live_data = 1;
+        auto live_data = true;
         if ((livedatalist + i)->Persistent == 1) {
-            sprintf(SQLQUERY, R"(SELECT IF (Value = "%s",NULL,Value) FROM LiveData where Inverter="%s" and Serial=%llu and Description="%s" ORDER BY DateTime DESC LIMIT 1)", (livedatalist + i)->Value, (livedatalist + i)->inverter, (livedatalist + i)->serial, (livedatalist + i)->Description);
+            const auto query = fmt::format(R"(SELECT IF (Value = "{}",NULL,Value) FROM LiveData where Inverter="{}" and Serial={} and Description="{}" ORDER BY DateTime DESC LIMIT 1)", (livedatalist + i)->Value, (livedatalist + i)->inverter, (livedatalist + i)->serial, (livedatalist + i)->Description);
 
-            if (auto result = mysql_connection.ExecuteQuery(SQLQUERY, debug); (row = mysql_fetch_row(result.res)))  //if there is a result, update the row
+            if (auto result = mysql_connection.ExecuteQuery(query, debug); (row = mysql_fetch_row(result.res)))  //if there is a result, update the row
             {
                 if (row[0] == nullptr) {
-                    live_data = 0;
+                    live_data = false;
                 }
             }
         }
-        if (live_data == 1) {
-            sprintf(datetime, "%d-%02d-%02d %02d:%02d:%02d", year, month, day, hour, minute, second);
-            sprintf(SQLQUERY, R"(INSERT INTO LiveData ( DateTime, Inverter, Serial, Description, Value, Units ) VALUES ( '%s', '%s', %lld, '%s', '%s', '%s'  ) ON DUPLICATE KEY UPDATE DateTime=Datetime, Inverter=VALUES(Inverter), Serial=VALUES(Serial), Description=VALUES(Description), Description=VALUES(Description), Value=VALUES(Value), Units=VALUES(Units))", datetime, (livedatalist + i)->inverter, (livedatalist + i)->serial, (livedatalist + i)->Description, (livedatalist + i)->Value, (livedatalist + i)->Units);
-            mysql_connection.ExecuteQuery(SQLQUERY, debug);
+
+        if (live_data) {
+            const auto datetime = fmt::format("{}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}", year, month, day, hour, minute, second);
+            const auto query = fmt::format(R"(INSERT INTO LiveData ( DateTime, Inverter, Serial, Description, Value, Units ) VALUES ( '{}', '{}', {}, '{}', '{}', '{}'  ) ON DUPLICATE KEY UPDATE DateTime=Datetime, Inverter=VALUES(Inverter), Serial=VALUES(Serial), Description=VALUES(Description), Description=VALUES(Description), Value=VALUES(Value), Units=VALUES(Units))", datetime, (livedatalist + i)->inverter, (livedatalist + i)->serial, (livedatalist + i)->Description, (livedatalist + i)->Value, (livedatalist + i)->Units);
+            mysql_connection.ExecuteQuery(query, debug);
         }
     }
 }

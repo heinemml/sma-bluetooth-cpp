@@ -18,6 +18,7 @@
 /* compile gcc -lbluetooth -lcurl -lmysqlclient -g -o smatool smatool.c */
 
 #include <curl/curl.h>
+#include <fmt/format.h>
 #include <libxml2/libxml/parser.h>
 #include <libxml2/libxml/xpath.h>
 #include <sys/socket.h>
@@ -31,6 +32,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <string>
 
 #include "almanac.h"
 #include "repost.h"
@@ -162,7 +164,7 @@ void add_escapes(unsigned char *cp, int *len)
 void fix_length_send(FlagType *flag, unsigned char *cp, int len)
 {
     if (flag->debug == 1)
-        printf("len=%x, checkbit %x, sum=%x\n", cp[1], cp[3], cp[1] + cp[3]);
+        fmt::print("len={:x}, checkbit {:x}, sum={:x}\n", cp[1], cp[3], cp[1] + cp[3]);
     if ((cp[1] != len + 1)) {
         cp[3] = (cp[1] + cp[3]) - (len + 1);
         cp[1] = len + 1;
@@ -170,7 +172,7 @@ void fix_length_send(FlagType *flag, unsigned char *cp, int len)
         cp[3] = cp[0] ^ cp[1] ^ cp[2];
 
         if (flag->debug == 1)
-            printf("corrected len=%x, checkbit %x, sum=%x\n", cp[1], cp[3], cp[1] + cp[3]);
+            fmt::print("corrected len={:x}, checkbit {:x}, sum={:x}\n", cp[1], cp[3], cp[1] + cp[3]);
     }
 }
 
@@ -181,7 +183,7 @@ void fix_length_received(FlagType *flag, unsigned char *received, int len)
 {
     if (received[1] != len) {
         if (flag->debug == 1)
-            printf("length change from %x to %x\n", received[1], len);
+            fmt::print("length change from 0x{:x} to 0x{:x}\n", received[1], len);
 
         if ((received[3] != 0x13) && (received[3] != 0x14)) {
             received[1] = len;
@@ -216,9 +218,12 @@ void tryfcs16(FlagType *flag, unsigned char *cp, int len, unsigned char *fl, int
     memcpy(stripped, cp, len);
     /* add on output */
     if (flag->debug == 2) {
-        printf("String to calculate FCS\n");
-        for (int i = 0; i < len; i++) printf("%02x ", cp[i]);
-        printf("\n\n");
+        fmt::print("String to calculate FCS\n");
+
+        for (int i = 0; i < len; i++)
+            fmt::print("{:02x} ", cp[i]);
+
+        fmt::print("\n\n");
     }
     trialfcs = pppfcs16(PPPINITFCS16, stripped, len);
     trialfcs ^= 0xffff;              /* complement */
@@ -226,7 +231,7 @@ void tryfcs16(FlagType *flag, unsigned char *cp, int len, unsigned char *fl, int
     fl[(*cc) + 1] = ((trialfcs >> 8) & 0x00ff);
     (*cc) += 2;
     if (flag->debug == 2) {
-        printf("FCS = %x%x %x\n", (trialfcs & 0x00ff), ((trialfcs >> 8) & 0x00ff), trialfcs);
+        fmt::print("FCS = {:x}{:x} {:x}\n", (trialfcs & 0x00ff), ((trialfcs >> 8) & 0x00ff), trialfcs);
     }
 }
 
@@ -280,8 +285,7 @@ int check_send_error(FlagType *flag, const int *s, int *rr, unsigned char *recei
     ssize_t bytes_read;
     unsigned char buf[1024]; /*read buffer*/
     unsigned char header[3]; /*read buffer*/
-    struct timeval tv {
-    };
+    timeval tv{};
     fd_set readfds;
 
     tv.tv_sec = 0;  // set timeout of reading
@@ -300,11 +304,14 @@ int check_send_error(FlagType *flag, const int *s, int *rr, unsigned char *recei
         (*rr) = 0;
         for (unsigned char c : header) {
             received[(*rr)] = c;
-            if (flag->debug == 1) printf("%02x ", received[(*rr)]);
+            if (flag->debug == 1)
+                fmt::print("{:02x} ", received[(*rr)]);
             (*rr)++;
         }
     } else {
-        if (flag->verbose == 1) printf("Timeout reading bluetooth socket\n");
+        if (flag->verbose == 1)
+            fmt::print("Timeout reading bluetooth socket\n");
+
         (*rr) = 0;
         memset(received, 0, 1024);
         return -1;
@@ -315,33 +322,34 @@ int check_send_error(FlagType *flag, const int *s, int *rr, unsigned char *recei
     if (FD_ISSET((*s), &readfds)) {                             // did we receive anything within 5 seconds
         bytes_read = recv((*s), buf, len - sizeof(header), 0);  //Read the length specified by header
     } else {
-        if (flag->verbose == 1) printf("Timeout reading bluetooth socket\n");
+        if (flag->verbose == 1)
+            fmt::print("Timeout reading bluetooth socket\n");
         (*rr) = 0;
         memset(received, 0, 1024);
         return -1;
     }
     if (bytes_read > 0) {
         if (flag->debug == 1) {
-            printf("\nReceiving\n");
-            printf("    %08x: .. .. .. .. .. .. .. .. .. .. .. .. ", 0);
+            fmt::print("\nReceiving\n");
+            fmt::print("    {:08x}: .. .. .. .. .. .. .. .. .. .. .. .. ", 0);
             unsigned int j = 12;
             for (unsigned char c : header) {
                 if (j % 16 == 0)
-                    printf("\n    %08x: ", j);
-                printf("%02x ", c);
+                    fmt::print("\n    {:08x}: ", j);
+                fmt::print("{:02x} ", c);
                 j++;
             }
             for (ssize_t i = 0; i < bytes_read; i++) {
                 if (j % 16 == 0)
-                    printf("\n    %08x: ", j);
-                printf("%02x ", buf[i]);
+                    fmt::print("\n    {:08x} ", j);
+                fmt::print("{:02x} ", buf[i]);
                 j++;
             }
-            printf(" rr=%d", (bytes_read + (*rr)));
-            printf("\n\n");
+            fmt::print(" rr={}", (bytes_read + (*rr)));
+            fmt::print("\n\n");
         }
         if ((cc == bytes_read) && (memcmp(received, last_sent, cc) == 0)) {
-            printf("ERROR received what we sent!");
+            fmt::print(stderr, "ERROR received what we sent!");
             getchar();
             //Need to do something
         }
@@ -369,15 +377,19 @@ int check_send_error(FlagType *flag, const int *s, int *rr, unsigned char *recei
             } else {
                 received[(*rr)] = buf[i];
             }
-            if (flag->debug == 1) printf("%02x ", received[(*rr)]);
+            if (flag->debug == 1)
+                fmt::print("{:02x} ", received[(*rr)]);
+
             (*rr)++;
         }
         fix_length_received(flag, received, *rr);
         if (flag->debug == 1) {
             printf("\n");
-            for (int i = 0; i < (*rr); i++) printf("%02x ", received[(i)]);
+            for (int i = 0; i < (*rr); i++)
+                fmt::print("{:02x} ", received[(i)]);
         }
-        if (flag->debug == 1) printf("\n\n");
+        if (flag->debug == 1)
+            fmt::print("\n\n");
         (*already_read) = 1;
     }
     return 0;
@@ -390,8 +402,7 @@ int empty_read_bluetooth(FlagType *flag, ReadRecordType *readRecord, const int *
     int j = 0;
     unsigned char buf[1024]; /*read buffer*/
     unsigned char header[4]; /*read buffer*/
-    struct timeval tv {
-    };
+    timeval tv{};
     fd_set readfds;
 
     tv.tv_sec = 1;  // set timeout of reading
@@ -402,7 +413,7 @@ int empty_read_bluetooth(FlagType *flag, ReadRecordType *readRecord, const int *
     FD_SET((*s), &readfds);
 
     if (select((*s) + 1, &readfds, nullptr, nullptr, &tv) < 0) {
-        printf("select error has occurred");
+        fmt::print("select error has occurred");
         getchar();
     }
 
@@ -413,7 +424,8 @@ int empty_read_bluetooth(FlagType *flag, ReadRecordType *readRecord, const int *
         (*rr) = 0;
         for (unsigned int i = 0; i < sizeof(header); i++) {
             received[(*rr)] = header[i];
-            if (flag->debug == 2) printf("%02x ", received[i]);
+            if (flag->debug == 2)
+                fmt::print("{:02x} ", received[i]);
             (*rr)++;
         }
     } else {
@@ -436,99 +448,99 @@ int empty_read_bluetooth(FlagType *flag, ReadRecordType *readRecord, const int *
 
     if (bytes_read > 0) {
         if (flag->debug == 1) {
-            printf("\n-----------------------------------------------------------");
-            printf("\nREAD:");
+            fmt::print("\n-----------------------------------------------------------");
+            fmt::print("\nREAD:");
             //Start byte
-            printf("\n7e ");
+            fmt::print("\n7e ");
             j++;
             //Size and checkbit
-            printf("%02x %02x                 size:              %d", header[1], header[2], len);
-            printf("\n   ");
-            printf("%02x ", header[3]);
-            printf("                      checkbit:          %d", header[3]);
-            printf("\n   ");
+            fmt::print("{:02x} {:02x}                 size:              {}", header[1], header[2], len);
+            fmt::print("\n   ");
+            fmt::print("{:02x} ", header[3]);
+            fmt::print("                      checkbit:          {}", header[3]);
+            fmt::print("\n   ");
             //Source Address
             for (ssize_t i = 0; i < bytes_read; i++) {
                 if (i > 5) break;
-                printf("%02x ", buf[i]);
+                fmt::print("{:02x} ", buf[i]);
             }
-            printf("       source:            %02x:%02x:%02x:%02x:%02x:%02x", buf[5], buf[4], buf[3], buf[2], buf[1], buf[0]);
-            printf("\n   ");
+            fmt::print("       source:            {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}", buf[5], buf[4], buf[3], buf[2], buf[1], buf[0]);
+            fmt::print("\n   ");
             //Destination Address
             for (ssize_t i = 6; i < bytes_read; i++) {
                 if (i > 11) break;
-                printf("%02x ", buf[i]);
+                fmt::print("{:02x} ", buf[i]);
             }
-            printf("       destination:       %02x:%02x:%02x:%02x:%02x:%02x", buf[11], buf[10], buf[9], buf[8], buf[7], buf[6]);
-            printf("\n   ");
+            fmt::print("       destination:       {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}", buf[11], buf[10], buf[9], buf[8], buf[7], buf[6]);
+            fmt::print("\n   ");
             //Destination Address
             for (ssize_t i = 12; i < bytes_read; i++) {
                 if (i > 13) break;
-                printf("%02x ", buf[i]);
+                fmt::print("{:02x} ", buf[i]);
             }
-            printf("                   control:           %02x%02x", buf[13], buf[12]);
+            fmt::print("                   control:           {:02x}{:02x}", buf[13], buf[12]);
             readRecord->Control[0] = buf[12];
             readRecord->Control[1] = buf[13];
 
             last_decoded = 14;
             if (memcmp(buf + 14, "\x7e\xff\x03\x60\x65", 5) == 0) {
-                printf("\n");
+                fmt::print("\n");
                 for (ssize_t i = 14; i < bytes_read; i++) {
                     if (i > 18) break;
-                    printf("%02x ", buf[i]);
+                    fmt::print("{:02x} ", buf[i]);
                 }
-                printf("             SMA Data2+ header: %02x:%02x:%02x:%02x:%02x", buf[18], buf[17], buf[16], buf[15], buf[14]);
-                printf("\n   ");
+                fmt::print("             SMA Data2+ header: {:02x}:{:02x}:{:02x}:{:02x}:{:02x}", buf[18], buf[17], buf[16], buf[15], buf[14]);
+                fmt::print("\n   ");
                 for (ssize_t i = 19; i < bytes_read; i++) {
                     if (i > 19) break;
-                    printf("%02x ", buf[i]);
+                    fmt::print("{:02x} ", buf[i]);
                 }
-                printf("                      data packet size:  %02d", buf[19]);
-                printf("\n   ");
+                fmt::print("                      data packet size:  {:02d}", buf[19]);
+                fmt::print("\n   ");
                 for (ssize_t i = 20; i < bytes_read; i++) {
                     if (i > 20) break;
-                    printf("%02x ", buf[i]);
+                    fmt::print("{:02x} ", buf[i]);
                 }
-                printf("                      control:           %02x", buf[20]);
-                printf("\n   ");
+                fmt::print("                      control:           {:02x}", buf[20]);
+                fmt::print("\n   ");
                 for (ssize_t i = 21; i < bytes_read; i++) {
                     if (i > 26) break;
-                    printf("%02x ", buf[i]);
+                    fmt::print("{:02x} ", buf[i]);
                 }
-                printf("       source:            %02x %02x:%02x:%02x:%02x:%02x", buf[21], buf[26], buf[25], buf[24], buf[23], buf[22]);
-                printf("\n   ");
+                fmt::print("       source:            {:02x} {:02x}:{:02x}:{:02x}:{:02x}:{:02x}", buf[21], buf[26], buf[25], buf[24], buf[23], buf[22]);
+                fmt::print("\n   ");
                 for (ssize_t i = 27; i < bytes_read; i++) {
                     if (i > 28) break;
-                    printf("%02x ", buf[i]);
+                    fmt::print("{:02x} ", buf[i]);
                 }
-                printf("                   read status:       %02x %02x", buf[28], buf[27]);
-                printf("\n   ");
+                fmt::print("                   read status:       {:02x} {:02x}", buf[28], buf[27]);
+                fmt::print("\n   ");
                 for (ssize_t i = 29; i < bytes_read; i++) {
                     if (i > 30) break;
-                    printf("%02x ", buf[i]);
+                    fmt::print("{:02x} ", buf[i]);
                 }
                 readRecord->Status[0] = buf[28];
                 readRecord->Status[1] = buf[27];
-                printf("                   count up:          %02d %02x:%02x", buf[29] + buf[30] * 256, buf[30], buf[29]);
-                printf("\n   ");
+                fmt::print("                   count up:          {:02d} {:02x}:{:02x}", buf[29] + buf[30] * 256, buf[30], buf[29]);
+                fmt::print("\n   ");
                 for (ssize_t i = 31; i < bytes_read; i++) {
                     if (i > 32) break;
-                    printf("%02x ", buf[i]);
+                    fmt::print("{:02x} ", buf[i]);
                 }
-                printf("                   count down:        %02d %02x:%02x", buf[31] + buf[32] * 256, buf[32], buf[31]);
-                printf("\n   ");
+                fmt::print("                   count down:        {:02d} {:02x}:{:02x}", buf[31] + buf[32] * 256, buf[32], buf[31]);
+                fmt::print("\n   ");
                 last_decoded = 33;
             }
             printf("\n   ");
             j = 0;
             for (int i = last_decoded; i < bytes_read; i++) {
                 if (j % 16 == 0)
-                    printf("\n   %08x: ", j);
-                printf("%02x ", buf[i]);
+                    fmt::print("\n   {:08x}: ", j);
+                fmt::print("{:02x} ", buf[i]);
                 j++;
             }
-            printf(" rr=%d", (bytes_read + 3));
-            printf("\n\n");
+            fmt::print(" rr={:d}", (bytes_read + 3));
+            fmt::print("\n\n");
         }
     }
     (*rr) = 0;
@@ -553,11 +565,12 @@ int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, c
     FD_SET((*s), &readfds);
 
     if (select((*s) + 1, &readfds, nullptr, nullptr, &tv) < 0) {
-        printf("select error has occurred");
+        fmt::print(stderr, "select error has occurred");
         getchar();
     }
 
-    if (flag->verbose == 1) printf("Reading bluetooth packet\n");
+    if (flag->verbose == 1)
+        fmt::print("Reading bluetooth packet\n");
 
     (*terminated) = 0;  // Tag to tell if string has 7e termination
     // first read the header to get the record length
@@ -566,11 +579,13 @@ int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, c
         (*rr) = 0;
         for (size_t i = 0; i < sizeof(header); i++) {
             received[(*rr)] = header[i];
-            if (flag->debug == 2) printf("%02x ", received[i]);
+            if (flag->debug == 2)
+                fmt::print("{:02x} ", received[i]);
             (*rr)++;
         }
     } else {
-        if (flag->verbose == 1) printf("Timeout reading bluetooth socket\n");
+        if (flag->verbose == 1)
+            fmt::print("Timeout reading bluetooth socket\n");
         (*rr) = 0;
         memset(received, 0, 1024);
         return -1;
@@ -580,9 +595,10 @@ int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, c
 
     if (FD_ISSET((*s), &readfds)) {                             // did we receive anything within 5 seconds
         bytes_read = recv((*s), buf, len - sizeof(header), 0);  //Read the length specified by header
-        printf("length defined by header: %d, actually read: %d\n", len, bytes_read);
+        fmt::print("length defined by header: {}, actually read: {}\n", len, bytes_read);
     } else {
-        if (flag->verbose == 1) printf("Timeout reading bluetooth socket\n");
+        if (flag->verbose == 1)
+            fmt::print("Timeout reading bluetooth socket\n");
         (*rr) = 0;
         memset(received, 0, 1024);
         return -1;
@@ -592,108 +608,108 @@ int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, c
     if (bytes_read > 0) {
         if (flag->debug == 1) {
             int i = 0;
-            printf("\n-----------------------------------------------------------");
-            printf("\nREAD:");
+            fmt::print("\n-----------------------------------------------------------");
+            fmt::print("\nREAD:");
             //Start byte
-            printf("\n7e ");
+            fmt::print("\n7e ");
             //Size and checkbit
-            printf("%02x %02x ", header[1], header[2]);
-            printf("                   size:              %d", len);
-            printf("\n   ");
-            printf("%02x ", header[3]);
-            printf("                      checkbit:          %d", header[3]);
-            printf("\n   ");
+            fmt::print("{:02x} {:02x} ", header[1], header[2]);
+            fmt::print("                   size:              {}", len);
+            fmt::print("\n   ");
+            fmt::print("{:02x} ", header[3]);
+            fmt::print("                      checkbit:          {:d}", header[3]);
+            fmt::print("\n   ");
             //Source Address
             for (i = 0; i < bytes_read; i++) {
                 if (i > 5) break;
-                printf("%02x ", buf[i]);
+                fmt::print("{:02x} ", buf[i]);
             }
-            printf("       source:            %02x:%02x:%02x:%02x:%02x:%02x", buf[5], buf[4], buf[3], buf[2], buf[1], buf[0]);
-            printf("\n   ");
+            fmt::print("       source:            {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}", buf[5], buf[4], buf[3], buf[2], buf[1], buf[0]);
+            fmt::print("\n   ");
             //Destination Address
             for (i = 6; i < bytes_read; i++) {
                 if (i > 11) break;
-                printf("%02x ", buf[i]);
+                fmt::print("{:02x} ", buf[i]);
             }
-            printf("       destination:       %02x:%02x:%02x:%02x:%02x:%02x", buf[11], buf[10], buf[9], buf[8], buf[7], buf[6]);
-            printf("\n   ");
+            fmt::print("       destination:       {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}", buf[11], buf[10], buf[9], buf[8], buf[7], buf[6]);
+            fmt::print("\n   ");
             //Destination Address
             for (i = 12; i < bytes_read; i++) {
                 if (i > 13) break;
-                printf("%02x ", buf[i]);
+                fmt::print("{:02x} ", buf[i]);
             }
-            printf("                   control:           %02x%02x", buf[13], buf[12]);
+            fmt::print("                   control:           {:02x}{:02x}", buf[13], buf[12]);
             readRecord->Control[0] = buf[12];
             readRecord->Control[1] = buf[13];
 
             if (memcmp(buf + 14, "\x7e\xff\x03\x60\x65", 5) == 0) {
-                printf("\n");
+                fmt::print("\n");
                 for (i = 14; i < bytes_read; i++) {
                     if (i > 18) break;
-                    printf("%02x ", buf[i]);
+                    fmt::print("{:02x} ", buf[i]);
                 }
-                printf("             SMA Data2+ header: %02x:%02x:%02x:%02x:%02x", buf[18], buf[17], buf[16], buf[15], buf[14]);
-                printf("\n   ");
+                fmt::print("             SMA Data2+ header: {:02x}:{:02x}:{:02x}:{:02x}:{:02x}", buf[18], buf[17], buf[16], buf[15], buf[14]);
+                fmt::print("\n   ");
                 for (i = 19; i < bytes_read; i++) {
                     if (i > 19) break;
-                    printf("%02x ", buf[i]);
+                    fmt::print("{:02x} ", buf[i]);
                 }
-                printf("                      data packet size:  %02d", buf[19]);
-                printf("\n   ");
+                fmt::print("                      data packet size:  {:02d}", buf[19]);
+                fmt::print("\n   ");
                 for (i = 20; i < bytes_read; i++) {
                     if (i > 20) break;
-                    printf("%02x ", buf[i]);
+                    fmt::print("{:02x} ", buf[i]);
                 }
-                printf("                      control:           %02x", buf[20]);
-                printf("\n   ");
+                fmt::print("                      control:           {:02x}", buf[20]);
+                fmt::print("\n   ");
                 for (i = 21; i < bytes_read; i++) {
                     if (i > 26) break;
-                    printf("%02x ", buf[i]);
+                    fmt::print("{:02x} ", buf[i]);
                 }
-                printf("       source:            %02x %02x:%02x:%02x:%02x:%02x", buf[21], buf[26], buf[25], buf[24], buf[23], buf[22]);
-                printf("\n   ");
+                fmt::print("       source:            {:02x} {:02x}:{:02x}:{:02x}:{:02x}:{:02x}", buf[21], buf[26], buf[25], buf[24], buf[23], buf[22]);
+                fmt::print("\n   ");
                 for (i = 27; i < bytes_read; i++) {
                     if (i > 28) break;
-                    printf("%02x ", buf[i]);
+                    fmt::print("{:02x} ", buf[i]);
                 }
-                printf("                   read status:       %02x %02x", buf[28], buf[27]);
-                printf("\n   ");
+                fmt::print("                   read status:       {:02x} {:02x}", buf[28], buf[27]);
+                fmt::print("\n   ");
                 for (i = 29; i < bytes_read; i++) {
                     if (i > 30) break;
-                    printf("%02x ", buf[i]);
+                    fmt::print("{:02x} ", buf[i]);
                 }
                 readRecord->Status[0] = buf[28];
                 readRecord->Status[1] = buf[27];
-                printf("                   count up:          %02d %02x:%02x", buf[29] + buf[30] * 256, buf[30], buf[29]);
-                printf("\n   ");
+                fmt::print("                   count up:          {:02d} {:02x}:{:02x}", buf[29] + buf[30] * 256, buf[30], buf[29]);
+                fmt::print("\n   ");
                 for (i = 31; i < bytes_read; i++) {
                     if (i > 32) break;
-                    printf("%02x ", buf[i]);
+                    fmt::print("{:02x} ", buf[i]);
                 }
-                printf("                   count down:        %02d %02x:%02x", buf[31] + buf[32] * 256, buf[32], buf[31]);
-                printf("\n   ");
+                fmt::print("                   count down:        {:02d} {:02x}:{:02x}", buf[31] + buf[32] * 256, buf[32], buf[31]);
+                fmt::print("\n   ");
             }
-            printf("\n   ");
+            fmt::print("\n   ");
             size_t j = 0;
             for (; i < bytes_read; i++) {
                 if (j % 16 == 0)
-                    printf("\n   %08x: ", j);
-                printf("%02x ", buf[i]);
+                    fmt::print("\n   {:08x}: ", j);
+                fmt::print("{:02x} ", buf[i]);
                 j++;
             }
-            printf(" rr=%d", (bytes_read + 3));
-            printf("\n\n");
+            fmt::print(" rr={:d}", (bytes_read + 3));
+            fmt::print("\n\n");
         }
 
         if ((cc == bytes_read) && (memcmp(received, last_sent, cc) == 0)) {
-            printf("ERROR received what we sent!");
+            fmt::print("ERROR received what we sent!");
             getchar();
             //Need to do something
         }
         // Check check bit
         checkbit = header[0] ^ header[1] ^ header[2];
         if (checkbit != header[3]) {
-            printf("\nCheckbit Error! %02x!=%02x\n", header[0] ^ header[1] ^ header[2], header[3]);
+            fmt::print("\nCheckbit Error! {:02x}!={:02x}\n", header[0] ^ header[1] ^ header[2], header[3]);
             (*rr) = 0;
             memset(received, 0, 1024);
             return -1;
@@ -722,15 +738,18 @@ int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, c
             } else {
                 received[(*rr)] = buf[i];
             }
-            if (flag->debug == 2) printf("%02x ", received[(*rr)]);
+            if (flag->debug == 2)
+                fmt::print("{:02x} ", received[(*rr)]);
             (*rr)++;
         }
         fix_length_received(flag, received, *rr);
         if (flag->debug == 2) {
             printf("\n");
-            for (int i = 0; i < (*rr); i++) printf("%02x ", received[(i)]);
+            for (int i = 0; i < (*rr); i++)
+                fmt::print("{:02x} ", received[(i)]);
         }
-        if (flag->debug == 1) printf("\n\n");
+        if (flag->debug == 1)
+            fmt::print("\n\n");
     }
     return 0;
 }
@@ -765,23 +784,28 @@ unsigned char *get_timezone_in_seconds(FlagType *flag, unsigned char *tzhex)
     isdst = loctime->tm_isdst;
     utctime = gmtime(&curtime);
 
-    if (flag->debug == 1) printf("utc=%04d-%02d-%02d %02d:%02d local=%04d-%02d-%02d %02d:%02d diff %d hours\n", utctime->tm_year + 1900, utctime->tm_mon + 1, utctime->tm_mday, utctime->tm_hour, utctime->tm_min, year, month, day, hour, minute, hour - utctime->tm_hour);
+    if (flag->debug == 1)
+        fmt::print("utc={:04d}-{:02d}-{:02d} {:02d}:{:02d} local={:04d}-{:02d}-{:02d} {:02d}:{:02d} diff {} hours\n", utctime->tm_year + 1900, utctime->tm_mon + 1, utctime->tm_mday, utctime->tm_hour, utctime->tm_min, year, month, day, hour, minute, hour - utctime->tm_hour);
     localOffset = (hour - utctime->tm_hour) + (float)(minute - utctime->tm_min) / 60;
-    if (flag->debug == 1) printf("localOffset=%f\n", localOffset);
+    if (flag->debug == 1)
+        fmt::print("localOffset={}\n", localOffset);
     if ((year > utctime->tm_year + 1900) || (month > utctime->tm_mon + 1) || (day > utctime->tm_mday))
         localOffset += 24;
     if ((year < utctime->tm_year + 1900) || (month < utctime->tm_mon + 1) || (day < utctime->tm_mday))
         localOffset -= 24;
-    if (flag->debug == 1) printf("localOffset=%f isdst=%d\n", localOffset, isdst);
+    if (flag->debug == 1)
+        fmt::print("localOffset={} isdst={}\n", localOffset, isdst);
     if (isdst > 0)
         localOffset = localOffset - 1;
     tzsecs = (localOffset)*3600 + 1;
     if (tzsecs < 0)
         tzsecs = 65536 + tzsecs;
-    if (flag->debug == 1) printf("tzsecs=%x %d\n", tzsecs, tzsecs);
+    if (flag->debug == 1)
+        fmt::print("tzsecs={:x} {:d}\n", tzsecs, tzsecs);
     tzhex[1] = tzsecs / 256;
     tzhex[0] = tzsecs - (tzsecs / 256) * 256;
-    if (flag->debug == 1) printf("tzsecs=%02x %02x\n", tzhex[1], tzhex[0]);
+    if (flag->debug == 1)
+        fmt::print("tzsecs={:02x} {:02x}\n", tzhex[1], tzhex[0]);
 
     return tzhex;
 }
@@ -792,11 +816,11 @@ int auto_set_dates(ConfType *conf, FlagType *flag)
     if (flag->mysql == 1) {
         auto mysql_connection = MySQLConnection(conf->MySqlHost, conf->MySqlUser, conf->MySqlPwd, conf->MySqlDatabase);
         //Get last updated value
-        char SQLQUERY[200];
-        sprintf(SQLQUERY, "SELECT DATE_FORMAT( DateTime, \"%%Y-%%m-%%d %%H:%%i:%%S\" ) FROM DayData WHERE 1 ORDER BY DateTime DESC LIMIT 1");
+        const auto query = "SELECT DATE_FORMAT( DateTime, \"%Y-%m-%d %H:%i:%S\" ) FROM DayData WHERE 1 ORDER BY DateTime DESC LIMIT 1";
 
         MYSQL_ROW row;
-        if (auto result = mysql_connection.ExecuteQuery(SQLQUERY, flag->debug); (row = mysql_fetch_row(result.res)))  //if there is a result, update the row
+        if (auto result = mysql_connection.ExecuteQuery(query, flag->debug);
+            (row = mysql_fetch_row(result.res)))  //if there is a result, update the row
         {
             strcpy(conf->datefrom, row[0]);
         }
@@ -816,7 +840,7 @@ int auto_set_dates(ConfType *conf, FlagType *flag)
 
     flag->daterange = 1;
     //if (flag->verbose == 1)
-    printf("Auto set dates from %s to %s\n", conf->datefrom, conf->dateto);
+    fmt::print("Auto set dates from {} to {}\n", conf->datefrom, conf->dateto);
 
     return 1;
 }
@@ -824,30 +848,30 @@ int auto_set_dates(ConfType *conf, FlagType *flag)
 int is_light(ConfType *conf, FlagType *flag)
 /*  Check if all data done and past sunset or before sunrise */
 {
-    int light = 1;
-    MYSQL_ROW row;
-    char SQLQUERY[200];
+    bool light = true;
 
     auto mysql_connection = MySQLConnection(conf->MySqlHost, conf->MySqlUser, conf->MySqlPwd, conf->MySqlDatabase);
     //Get Start of day value
-    sprintf(SQLQUERY, "SELECT if(sunrise < NOW(),1,0) FROM Almanac WHERE date= DATE_FORMAT( NOW(), \"%%Y-%%m-%%d\" ) ");
 
-    if (auto result = mysql_connection.ExecuteQuery(SQLQUERY, flag->debug); (row = mysql_fetch_row(result.res)))  //if there is a result, update the row
+    MYSQL_ROW row;
+    if (auto result = mysql_connection.ExecuteQuery("SELECT if(sunrise < NOW(),1,0) FROM Almanac WHERE date= DATE_FORMAT( NOW(), \"%Y-%m-%d\")", flag->debug);
+        (row = mysql_fetch_row(result.res)))  //if there is a result, update the row
     {
-        if (atoi((char *)row[0]) == 0) light = 0;
+        if (atoi((char *)row[0]) == 0) light = false;
     }
 
     if (light) {
-        sprintf(SQLQUERY, "SELECT if( dd.datetime > al.sunset,1,0) FROM DayData as dd left join Almanac as al on al.date=DATE(dd.datetime) and al.date=DATE(NOW()) WHERE 1 ORDER BY dd.datetime DESC LIMIT 1");
+        const auto query = "SELECT if( dd.datetime > al.sunset,1,0) FROM DayData as dd left join Almanac as al on al.date=DATE(dd.datetime) and al.date=DATE(NOW()) WHERE 1 ORDER BY dd.datetime DESC LIMIT 1";
 
-        if (auto result = mysql_connection.ExecuteQuery(SQLQUERY, flag->debug); (row = mysql_fetch_row(result.res)))  //if there is a result, update the row
+        if (auto result = mysql_connection.ExecuteQuery(query, flag->debug); (row = mysql_fetch_row(result.res)))  //if there is a result, update the row
         {
-            if (atoi((char *)row[0]) == 1) light = 0;
+            if (atoi((char *)row[0]) == 1) light = false;
         }
     }
-    if (flag->debug == 1) printf("is light %x\n", light);
+    if (flag->debug == 1)
+        fmt::print("is light {}\n", light);
 
-    return light;
+    return light ? 1 : 0;
 }
 
 //Set a value depending on inverter
@@ -867,7 +891,6 @@ void SetInverterType(ConfType *conf, UnitType **unit)
 //Convert a recieved string to a value
 long ConvertStreamtoLong(const unsigned char *stream, int length, unsigned long long *value)
 {
-
     (*value) = 0;
     bool nullvalue = true;
 
@@ -893,17 +916,16 @@ float ConvertStreamtoFloat(const unsigned char *stream, int length, float *value
         (*value) = (*value) + stream[i] * pow(256, i);
     }
     if (nullvalue)
-        (*value) = 0;  //Asigning null to 0 at this stage unless it breaks something
+        (*value) = 0;  //Assigning null to 0 at this stage unless it breaks something
     return (*value);
 }
 
 //Convert a recieved string to a value
 char *ConvertStreamtoString(const unsigned char *stream, int length)
 {
-    char *value;
     bool nullvalue = true;
 
-    value = static_cast<char *>(malloc(sizeof(char) * 10 + 1));
+    auto *value = static_cast<char *>(malloc(sizeof(char) * 10 + 1));
     int j = 0, i = 0;
     for (; i < length; i++) {
         if (i % 10 > j) {
@@ -939,8 +961,8 @@ InitReturnKeys(ConfType *conf)
 
     fp = fopen(conf->File, "r");
     if (fp == nullptr) {
-        printf("\nCouldn't open file %s", conf->File);
-        printf("\nerror=%s\n", strerror(errno));
+        fmt::print(stderr, "\nCouldn't open file {}", conf->File);
+        fmt::print(stderr, "\nerror={}\n", strerror(errno));
         exit(1);
     } else {
         while (!feof(fp)) {
@@ -962,23 +984,24 @@ InitReturnKeys(ConfType *conf)
                         tmp.persistent = 1;
 
                         if (sscanf(line, R"(%x %x "%[^"]" "%[^"]" %d %d %d %d)", &tmp.key1, &tmp.key2, tmp.description, tmp.units, &tmp.decimal, &tmp.recordgap, &tmp.datalength, &tmp.persistent) == 8) {
-                            if ((num_return_keys) == 0)
+                            if (num_return_keys == 0)
                                 returnkeylist = (ReturnType *)malloc(sizeof(ReturnType));
                             else
-                                returnkeylist = (ReturnType *)realloc(returnkeylist, sizeof(ReturnType) * ((num_return_keys) + 1));
-                            (returnkeylist + (num_return_keys))->key1 = tmp.key1;
-                            (returnkeylist + (num_return_keys))->key2 = tmp.key2;
-                            strcpy((returnkeylist + (num_return_keys))->description, tmp.description);
-                            strcpy((returnkeylist + (num_return_keys))->units, tmp.units);
-                            (returnkeylist + (num_return_keys))->decimal = tmp.decimal;
-                            (returnkeylist + (num_return_keys))->divisor = (float)pow(10, tmp.decimal);
-                            (returnkeylist + (num_return_keys))->datalength = tmp.datalength;
-                            (returnkeylist + (num_return_keys))->recordgap = tmp.recordgap;
-                            (returnkeylist + (num_return_keys))->persistent = tmp.persistent;
-                            (num_return_keys)++;
+                                returnkeylist = (ReturnType *)realloc(returnkeylist, sizeof(ReturnType) * (num_return_keys + 1));
+
+                            (returnkeylist + num_return_keys)->key1 = tmp.key1;
+                            (returnkeylist + num_return_keys)->key2 = tmp.key2;
+                            strcpy((returnkeylist + num_return_keys)->description, tmp.description);
+                            strcpy((returnkeylist + num_return_keys)->units, tmp.units);
+                            (returnkeylist + num_return_keys)->decimal = tmp.decimal;
+                            (returnkeylist + num_return_keys)->divisor = (float)pow(10, tmp.decimal);
+                            (returnkeylist + num_return_keys)->datalength = tmp.datalength;
+                            (returnkeylist + num_return_keys)->recordgap = tmp.recordgap;
+                            (returnkeylist + num_return_keys)->persistent = tmp.persistent;
+                            ++num_return_keys;
                         } else {
                             if (line[0] != ':') {
-                                printf("\nWarning Data Scan Failure\n %s\n", line);
+                                fmt::print(stderr, "\nWarning Data Scan Failure\n {}\n", line);
                                 getchar();
                             }
                         }
@@ -1105,11 +1128,12 @@ ReadStream(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, int *s, u
         } else
             finished = 1;
     }
+
     if (flag->debug == 1) {
-        printf("len=%d data=", (*datalen));
+        fmt::print("len={} data=", (*datalen));
         for (i = 0; i < (*datalen); i++)
-            printf("%02x ", datalist[i]);
-        printf("\n");
+            fmt::print("{:02x} ", datalist[i]);
+        fmt::print("\n");
     }
     return datalist;
 }
@@ -1160,12 +1184,12 @@ int GetConfig(ConfType *conf, FlagType *flag)
 
     if (strlen(conf->Config) > 0) {
         if ((fp = fopen(conf->Config, "r")) == (FILE *)nullptr) {
-            printf("Error! Could not open file %s\n", conf->Config);
+            fmt::print(stderr, "Error! Could not open file {}\n", conf->Config);
             return (-1);  //Could not open file
         }
     } else {
         if ((fp = fopen("./smatool.conf", "r")) == (FILE *)nullptr) {
-            printf("Error! Could not open file ./smatool.conf\n");
+            fmt::print(stderr, "Error! Could not open file ./smatool.conf\n");
             return (-1);  //Could not open file
         }
     }
@@ -1175,7 +1199,7 @@ int GetConfig(ConfType *conf, FlagType *flag)
                 strcpy(value, "");  //Null out value
                 sscanf(line, "%s %s", variable, value);
                 if (flag->debug == 1)
-                    printf("%s='%s'\n", variable, value);
+                    fmt::print("'{}'='{}'\n", variable, value);
                 if (value[0] != '\0') {
                     if (strcmp(variable, "BTAddress") == 0)
                         strcpy(conf->BTAddress, value);
@@ -1218,7 +1242,7 @@ getdoc(char *docname)
     doc = xmlParseFile(docname);
 
     if (doc == nullptr) {
-        fprintf(stderr, "Document not parsed successfully. \n");
+        fmt::print(stderr, "Document not parsed successfully. \n");
         return nullptr;
     }
 
@@ -1233,18 +1257,18 @@ getnodeset(xmlDocPtr doc, xmlChar *xpath)
 
     context = xmlXPathNewContext(doc);
     if (context == nullptr) {
-        printf("Error in xmlXPathNewContext\n");
+        fmt::print(stderr, "Error in xmlXPathNewContext\n");
         return nullptr;
     }
     result = xmlXPathEvalExpression(xpath, context);
     xmlXPathFreeContext(context);
     if (result == nullptr) {
-        printf("Error in xmlXPathEvalExpression\n");
+        fmt::print(stderr, "Error in xmlXPathEvalExpression\n");
         return nullptr;
     }
     if (xmlXPathNodeSetIsEmpty(result->nodesetval)) {
         xmlXPathFreeObject(result);
-        printf("No result\n");
+        fmt::print("No result\n");
         return nullptr;
     }
     return result;
@@ -1286,7 +1310,7 @@ char *return_xml_data(int index)
         }
         xmlXPathFreeObject(result);
     } else
-        printf("\nfailed to getnodeset with xpath '%s'\n", xpath);
+        fmt::print(stderr, "\nfailed to getnodeset with xpath '{}'\n", xpath);
     xmlFreeDoc(doc);
     xmlCleanupParser();
 
@@ -1296,42 +1320,42 @@ char *return_xml_data(int index)
 /* Print a help message */
 void PrintHelp()
 {
-    printf("Usage: smatool [OPTION]\n");
-    printf("  -v,  --verbose                           Give more verbose output\n");
-    printf("  -d,  --debug                             Show debug\n");
-    printf("  -c,  --config CONFIGFILE                 Set config file default smatool.conf\n");
-    printf("       --test                              Run in test mode - don't update data\n");
-    printf("\n");
-    printf("Dates are no longer required - defaults to last update if using mysql\n");
-    printf("or 2000 to now if not using mysql\n");
-    printf("  -from  --datefrom YYYY-MM-DD HH:MM:00    Date range from date\n");
-    printf("  -to  --dateto YYYY-MM-DD HH:MM:00        Date range to date\n");
-    printf("\n");
-    printf("The following options are in config file but may be overridden\n");
-    printf("  -i,  --inverter INVERTER_MODEL           inverter model\n");
-    printf("  -a,  --address INVERTER_ADDRESS          inverter BT address\n");
-    printf("  -t,  --timeout TIMEOUT                   bluetooth timeout (secs) default 5\n");
-    printf("  -p,  --password PASSWORD                 inverter user password default 0000\n");
-    printf("  -f,  --file FILENAME                     command file default sma.in\n");
-    printf("Location Information to calculate sunset and sunrise so inverter is not\n");
-    printf("queried in the dark\n");
-    printf("  -lat,  --latitude LATITUDE               location latitude -180 to 180 deg\n");
-    printf("  -lon,  --longitude LONGITUDE             location longitude -90 to 90 deg\n");
-    printf("Mysql database information\n");
-    printf("  -H,  --mysqlhost MYSQLHOST               mysql host default localhost\n");
-    printf("  -D,  --mysqldb MYSQLDATBASE              mysql database default smatool\n");
-    printf("  -U,  --mysqluser MYSQLUSER               mysql user\n");
-    printf("  -P,  --mysqlpwd MYSQLPASSWORD            mysql password\n");
-    printf("Mysql tables can be installed using INSTALL you may have to use a higher \n");
-    printf("privelege user to allow the creation of databases and tables, use command line \n");
-    printf("       --INSTALL                           install mysql data tables\n");
-    printf("       --UPDATE                            update mysql data tables\n");
-    printf("PVOutput.org (A free solar information system) Configs\n");
-    printf("  -url,  --pvouturl PVOUTURL               pvoutput.org live url\n");
-    printf("  -key,  --pvoutkey PVOUTKEY               pvoutput.org key\n");
-    printf("  -sid,  --pvoutsid PVOUTSID               pvoutput.org sid\n");
-    printf("  -repost                                  verify and repost data if different\n");
-    printf("\n\n");
+    fmt::print("Usage: smatool [OPTION]\n");
+    fmt::print("  -v,  --verbose                           Give more verbose output\n");
+    fmt::print("  -d,  --debug                             Show debug\n");
+    fmt::print("  -c,  --config CONFIGFILE                 Set config file default smatool.conf\n");
+    fmt::print("       --test                              Run in test mode - don't update data\n");
+    fmt::print("\n");
+    fmt::print("Dates are no longer required - defaults to last update if using mysql\n");
+    fmt::print("or 2000 to now if not using mysql\n");
+    fmt::print("  -from  --datefrom YYYY-MM-DD HH:MM:00    Date range from date\n");
+    fmt::print("  -to  --dateto YYYY-MM-DD HH:MM:00        Date range to date\n");
+    fmt::print("\n");
+    fmt::print("The following options are in config file but may be overridden\n");
+    fmt::print("  -i,  --inverter INVERTER_MODEL           inverter model\n");
+    fmt::print("  -a,  --address INVERTER_ADDRESS          inverter BT address\n");
+    fmt::print("  -t,  --timeout TIMEOUT                   bluetooth timeout (secs) default 5\n");
+    fmt::print("  -p,  --password PASSWORD                 inverter user password default 0000\n");
+    fmt::print("  -f,  --file FILENAME                     command file default sma.in\n");
+    fmt::print("Location Information to calculate sunset and sunrise so inverter is not\n");
+    fmt::print("queried in the dark\n");
+    fmt::print("  -lat,  --latitude LATITUDE               location latitude -180 to 180 deg\n");
+    fmt::print("  -lon,  --longitude LONGITUDE             location longitude -90 to 90 deg\n");
+    fmt::print("Mysql database information\n");
+    fmt::print("  -H,  --mysqlhost MYSQLHOST               mysql host default localhost\n");
+    fmt::print("  -D,  --mysqldb MYSQLDATBASE              mysql database default smatool\n");
+    fmt::print("  -U,  --mysqluser MYSQLUSER               mysql user\n");
+    fmt::print("  -P,  --mysqlpwd MYSQLPASSWORD            mysql password\n");
+    fmt::print("Mysql tables can be installed using INSTALL you may have to use a higher \n");
+    fmt::print("privelege user to allow the creation of databases and tables, use command line \n");
+    fmt::print("       --INSTALL                           install mysql data tables\n");
+    fmt::print("       --UPDATE                            update mysql data tables\n");
+    fmt::print("PVOutput.org (A free solar information system) Configs\n");
+    fmt::print("  -url,  --pvouturl PVOUTURL               pvoutput.org live url\n");
+    fmt::print("  -key,  --pvoutkey PVOUTKEY               pvoutput.org key\n");
+    fmt::print("  -sid,  --pvoutsid PVOUTSID               pvoutput.org sid\n");
+    fmt::print("  -repost                                  verify and repost data if different\n");
+    fmt::print("\n\n");
 }
 
 /* Init Config to default values */
@@ -1481,10 +1505,8 @@ int main(int argc, char **argv)
     int install = 0, update = 0, no_dark = 0;
     int error = 0;
     int max_output;
-    char compurl[1200];  //seg error on curl fix 2012.01.14
     unsigned char tzhex[2] = {0};
     MYSQL_ROW row, row1;
-    char SQLQUERY[2000];
     int archdatalen = 0, livedatalen = 0;
     ArchDataType *archdatalist = nullptr;
     LiveDataType *livedatalist = nullptr;
@@ -1493,7 +1515,7 @@ int main(int argc, char **argv)
 
     unit = (UnitType *)malloc(sizeof(UnitType) * maximumUnits);
     if (unit == nullptr) {
-        printf("Error allocating memory for line buffer.");
+        fmt::print(stderr, "Error allocating memory for line buffer.");
         exit(1);
     }
     memset(received, 0, sizeof(received));
@@ -1532,31 +1554,31 @@ int main(int argc, char **argv)
     get_timezone_in_seconds(&flag, tzhex);
     // Location based information to avoid querying Inverter in the dark
     if ((flag.location == 1) && (flag.mysql == 1)) {
-        if (flag.debug == 1) printf("Before todays Almanac\n");
+        if (flag.debug == 1) fmt::print("Before todays Almanac\n");
         if (!todays_almanac(&conf, flag.debug)) {
             sprintf(sunrise_time, "%s", sunrise(&conf, flag.debug));
             sprintf(sunset_time, "%s", sunset(&conf));
-            if (flag.verbose == 1) printf("sunrise=%s sunset=%s\n", sunrise_time, sunset_time);
+            if (flag.verbose == 1) fmt::print("sunrise={} sunset={}\n", sunrise_time, sunset_time);
             update_almanac(&conf, sunrise_time, sunset_time, flag.debug);
         }
     }
 
     if (flag.mysql == 1) {
-        if (flag.debug == 1) printf("Before Check Schema\n");
+        if (flag.debug == 1) fmt::print("Before Check Schema\n");
         if (check_schema(&conf, &flag, SCHEMA) != 1)
             exit(-1);
     }
 
     if (flag.daterange == 0) {  //auto set the dates
-        if (flag.debug == 1) printf("auto_set_dates\n");
+        if (flag.debug == 1) fmt::print("auto_set_dates\n");
         auto_set_dates(&conf, &flag);
     }
 
     if (flag.verbose == 1)
-        printf("QUERY RANGE    from %s to %s\n", conf.datefrom, conf.dateto);
+        fmt::print("QUERY RANGE    from {} to {}\n", conf.datefrom, conf.dateto);
 
     if ((flag.daterange == 1) && ((flag.location = 0) || (flag.mysql == 0) || no_dark == 1 || is_light(&conf, &flag))) {
-        printf("Address %s\n", conf.BTAddress);
+        fmt::print("Address {}\n", conf.BTAddress);
         //Connect to Inverter
         int bt_sock = 0;
         if ((bt_sock = ConnectSocket(&conf)) < 0)
@@ -1593,15 +1615,14 @@ int main(int argc, char **argv)
         auto mysql_connection = MySQLConnection(conf.MySqlHost, conf.MySqlUser, conf.MySqlPwd, conf.MySqlDatabase);
         for (int i = 1; i < archdatalen; i++)  //Start at 1 as the first record is a dummy
         {
-            snprintf(SQLQUERY, sizeof(SQLQUERY), "INSERT INTO DayData ( DateTime, Inverter, Serial, CurrentPower, EtotalToday ) VALUES ( FROM_UNIXTIME(%ld),\'%s\',%lld,%0.f, %.3f ) ON DUPLICATE KEY UPDATE DateTime=Datetime, Inverter=VALUES(Inverter), Serial=VALUES(Serial), CurrentPower=VALUES(CurrentPower), EtotalToday=VALUES(EtotalToday)", (archdatalist + i)->date, (archdatalist + i)->inverter, (archdatalist + i)->serial, (archdatalist + i)->current_value, (archdatalist + i)->accum_value);
-            mysql_connection.ExecuteQuery(SQLQUERY, flag.debug);
+            const auto query = fmt::format("INSERT INTO DayData ( DateTime, Inverter, Serial, CurrentPower, EtotalToday ) VALUES ( FROM_UNIXTIME({}),\'{}\',{},{:0.f}, {:.3f} ) ON DUPLICATE KEY UPDATE DateTime=Datetime, Inverter=VALUES(Inverter), Serial=VALUES(Serial), CurrentPower=VALUES(CurrentPower), EtotalToday=VALUES(EtotalToday)", (archdatalist + i)->date, (archdatalist + i)->inverter, (archdatalist + i)->serial, (archdatalist + i)->current_value, (archdatalist + i)->accum_value);
+            mysql_connection.ExecuteQuery(query, flag.debug);
         }
 
         if (flag.post == 1) {
 
             char batch_string[1000];
             int batch_count = 0;
-            unsigned long long inverter_serial;
 
             //Update Mysql with live data
             live_mysql(conf, flag.debug, livedatalist, livedatalen);
@@ -1609,35 +1630,39 @@ int main(int argc, char **argv)
             getchar();
             /* Connect to database */
             auto mysql_connection = MySQLConnection(conf.MySqlHost, conf.MySqlUser, conf.MySqlPwd, conf.MySqlDatabase);
-            inverter_serial = (unit[0].Serial[0] << 24) + (unit[0].Serial[1] << 16) + (unit[0].Serial[2] << 8) + unit[0].Serial[3];
-            snprintf(SQLQUERY, sizeof(SQLQUERY), R"(SELECT Value FROM LiveData WHERE Inverter = '%s' and Serial='%lld' and Description='Max Phase 1' ORDER BY DateTime DESC LIMIT 1)", unit[0].Inverter, inverter_serial);
 
-            if (auto result = mysql_connection.ExecuteQuery(SQLQUERY, flag.debug); mysql_num_rows(result.res) == 1) {
-                if ((row = mysql_fetch_row(result.res))) {
-                    max_output = atoi(row[0]) * 1.2;
+            {
+                unsigned long long inverter_serial = (unit[0].Serial[0] << 24) + (unit[0].Serial[1] << 16) + (unit[0].Serial[2] << 8) + unit[0].Serial[3];
+                const auto query = fmt::format(R"(SELECT Value FROM LiveData WHERE Inverter = '{}' and Serial='{}' and Description='Max Phase 1' ORDER BY DateTime DESC LIMIT 1)", unit[0].Inverter, inverter_serial);
+                if (auto result = mysql_connection.ExecuteQuery(query, flag.debug); mysql_num_rows(result.res) == 1) {
+                    if ((row = mysql_fetch_row(result.res))) {
+                        max_output = atoi(row[0]) * 1.2;
+                    }
                 }
             }
 
-            snprintf(SQLQUERY, sizeof(SQLQUERY), R"(SELECT DATE_FORMAT(dd1.DateTime,'%%Y%%m%%d'), DATE_FORMAT(dd1.DateTime,'%%H:%%i'), ROUND((dd1.ETotalToday-dd2.EtotalToday)*1000), if( dd1.CurrentPower < %d ,dd1.CurrentPower, %d ), dd1.DateTime FROM DayData as dd1 join DayData as dd2 on dd2.DateTime=DATE_FORMAT(dd1.DateTime,'%%Y-%%m-%%d 00:00:00') WHERE dd1.DateTime>=Date_Sub(CURDATE(),INTERVAL 13 DAY) and dd1.PVOutput IS NULL and dd1.CurrentPower>0 ORDER BY dd1.DateTime ASC)", max_output, max_output);
+            const auto query = fmt::format(R"(SELECT DATE_FORMAT(dd1.DateTime,'%Y%m%d'), DATE_FORMAT(dd1.DateTime,'%H:%i'), ROUND((dd1.ETotalToday-dd2.EtotalToday)*1000), if( dd1.CurrentPower < {0}, dd1.CurrentPower, {0} ), dd1.DateTime FROM DayData as dd1 join DayData as dd2 on dd2.DateTime=DATE_FORMAT(dd1.DateTime,'%Y-%m-%d 00:00:00') WHERE dd1.DateTime>=Date_Sub(CURDATE(),INTERVAL 13 DAY) and dd1.PVOutput IS NULL and dd1.CurrentPower>0 ORDER BY dd1.DateTime ASC)", max_output);
 
             batch_count = 0;
-            auto result = mysql_connection.ExecuteQuery(SQLQUERY, flag.debug);
+            auto result = mysql_connection.ExecuteQuery(query, flag.debug);
             if (mysql_num_rows(result.res) == 1) {
                 if ((row = mysql_fetch_row(result.res)))  //Need to update these
                 {
-                    snprintf(compurl, sizeof(compurl), "%s?d=%s&t=%s&v1=%s&v2=%s&key=%s&sid=%s", conf.PVOutputURL, row[0], row[1], row[2], row[3], conf.PVOutputKey, conf.PVOutputSid);
-                    if (flag.debug == 1) printf("url = %s\n", compurl);
+                    const auto compurl = fmt::format("{}?d={}&t={}&v1={}&v2={}&key={}&sid={}", conf.PVOutputURL, row[0], row[1], row[2], row[3], conf.PVOutputKey, conf.PVOutputSid);
+                    if (flag.debug == 1)
+                        fmt::print("url = {}\n", compurl);
                     {
                         CURL *curl = curl_easy_init();
                         if (curl) {
-                            curl_easy_setopt(curl, CURLOPT_URL, compurl);
-                            curl_easy_setopt(curl, CURLOPT_FAILONERROR, compurl);
+                            curl_easy_setopt(curl, CURLOPT_URL, compurl.c_str());
+                            curl_easy_setopt(curl, CURLOPT_FAILONERROR, compurl.c_str());
                             CURLcode result = curl_easy_perform(curl);
-                            if (flag.debug == 1) printf("result = %d\n", result);
+                            if (flag.debug == 1)
+                                fmt::print("result = {}\n", result);
                             curl_easy_cleanup(curl);
                             if (result == 0) {
-                                snprintf(SQLQUERY, sizeof(SQLQUERY), "UPDATE DayData  set PVOutput=NOW() WHERE DateTime=\"%s\"  ", row[4]);
-                                mysql_connection.ExecuteQuery(SQLQUERY, flag.debug);
+                                const auto query_update = fmt::format("UPDATE DayData  set PVOutput=NOW() WHERE DateTime=\"{}\"", row[4]);
+                                mysql_connection.ExecuteQuery(query_update, flag.debug);
                             }
                         }
                     }
@@ -1654,22 +1679,24 @@ int main(int argc, char **argv)
                     if (batch_count == 30) {
                         CURL *curl = curl_easy_init();
                         if (curl) {
-                            snprintf(compurl, sizeof(compurl), "http://pvoutput.org/service/r2/addbatchstatus.jsp?data=%s&key=%s&sid=%s", batch_string, conf.PVOutputKey, conf.PVOutputSid);
-                            if (flag.debug == 1) printf("url = %s\n", compurl);
-                            curl_easy_setopt(curl, CURLOPT_URL, compurl);
-                            curl_easy_setopt(curl, CURLOPT_FAILONERROR, compurl);
+                            const auto compurl = fmt::format("http://pvoutput.org/service/r2/addbatchstatus.jsp?data={}&key={}&sid={}", batch_string, conf.PVOutputKey, conf.PVOutputSid);
+                            if (flag.debug == 1)
+                                fmt::print("url = {}\n", compurl);
+                            curl_easy_setopt(curl, CURLOPT_URL, compurl.c_str());
+                            curl_easy_setopt(curl, CURLOPT_FAILONERROR, compurl.c_str());
                             CURLcode curl_result = curl_easy_perform(curl);
                             sleep(1);
-                            if (flag.debug == 1) printf("result = %d\n", curl_result);
+                            if (flag.debug == 1)
+                                fmt::print("result = {}\n", curl_result);
                             curl_easy_cleanup(curl);
                             if (curl_result == 0) {
-                                snprintf(SQLQUERY, sizeof(SQLQUERY), R"(SELECT DATE_FORMAT(dd1.DateTime,'%%Y%%m%%d'), DATE_FORMAT(dd1.DateTime,'%%H:%%i'), ROUND((dd1.ETotalToday-dd2.EtotalToday)*1000), dd1.CurrentPower, dd1.DateTime FROM DayData as dd1 join DayData as dd2 on dd2.DateTime=DATE_FORMAT(dd1.DateTime,'%%Y-%%m-%%d 00:00:00') WHERE dd1.DateTime>=Date_Sub(CURDATE(),INTERVAL 13 DAY) and dd1.PVOutput IS NULL and dd1.CurrentPower>0 ORDER BY dd1.DateTime ASC limit %d)", batch_count);
-                                auto result_to_update = mysql_connection.ExecuteQuery(SQLQUERY, flag.debug);
+                                const auto query = fmt::format(R"(SELECT DATE_FORMAT(dd1.DateTime,'%Y%m%d'), DATE_FORMAT(dd1.DateTime,'%H:%i'), ROUND((dd1.ETotalToday-dd2.EtotalToday)*1000), dd1.CurrentPower, dd1.DateTime FROM DayData as dd1 join DayData as dd2 on dd2.DateTime=DATE_FORMAT(dd1.DateTime,'%Y-%m-%d 00:00:00') WHERE dd1.DateTime>=Date_Sub(CURDATE(),INTERVAL 13 DAY) and dd1.PVOutput IS NULL and dd1.CurrentPower>0 ORDER BY dd1.DateTime ASC limit {})", batch_count);
+                                auto result_to_update = mysql_connection.ExecuteQuery(query, flag.debug);
 
                                 while ((row1 = mysql_fetch_row(result_to_update.res)))  //Need to update these
                                 {
-                                    snprintf(SQLQUERY, sizeof(SQLQUERY), "UPDATE DayData set PVOutput=NOW() WHERE DateTime=\"%s\"  ", row1[4]);
-                                    mysql_connection.ExecuteQuery(SQLQUERY, flag.debug);
+                                    const auto query_update = fmt::format("UPDATE DayData set PVOutput=NOW() WHERE DateTime=\"{}\"", row1[4]);
+                                    mysql_connection.ExecuteQuery(query_update, flag.debug);
                                 }
                             } else
                                 break;
@@ -1681,21 +1708,23 @@ int main(int argc, char **argv)
                 if (batch_count > 0) {
                     CURL *curl = curl_easy_init();
                     if (curl) {
-                        sprintf(compurl, "http://pvoutput.org/service/r2/addbatchstatus.jsp?data=%s&key=%s&sid=%s", batch_string, conf.PVOutputKey, conf.PVOutputSid);
-                        if (flag.debug == 1) printf("url = %s\n", compurl);
-                        curl_easy_setopt(curl, CURLOPT_URL, compurl);
-                        curl_easy_setopt(curl, CURLOPT_FAILONERROR, compurl);
+                        const auto compurl = fmt::format("http://pvoutput.org/service/r2/addbatchstatus.jsp?data={}&key={}&sid={}", batch_string, conf.PVOutputKey, conf.PVOutputSid);
+                        if (flag.debug == 1)
+                            fmt::print("url = {}\n", compurl);
+                        curl_easy_setopt(curl, CURLOPT_URL, compurl.c_str());
+                        curl_easy_setopt(curl, CURLOPT_FAILONERROR, compurl.c_str());
                         CURLcode result = curl_easy_perform(curl);
                         sleep(1);
-                        if (flag.debug == 1) printf("result = %d\n", result);
+                        if (flag.debug == 1)
+                            fmt::print("result = {}\n", result);
                         curl_easy_cleanup(curl);
                         if (result == 0) {
-                            snprintf(SQLQUERY, sizeof(SQLQUERY), R"(SELECT DATE_FORMAT(dd1.DateTime,'%%Y%%m%%d'), DATE_FORMAT(dd1.DateTime,'%%H:%%i'), ROUND((dd1.ETotalToday-dd2.EtotalToday)*1000), dd1.CurrentPower, dd1.DateTime FROM DayData as dd1 join DayData as dd2 on dd2.DateTime=DATE_FORMAT(dd1.DateTime,'%%Y-%%m-%%d 00:00:00') WHERE dd1.DateTime>=Date_Sub(CURDATE(),INTERVAL 1 DAY) and dd1.PVOutput IS NULL and dd1.CurrentPower>0 ORDER BY dd1.DateTime ASC limit %d)", batch_count);
-                            auto result = mysql_connection.ExecuteQuery(SQLQUERY, flag.debug);
+                            const auto query = fmt::format(R"(SELECT DATE_FORMAT(dd1.DateTime,'%Y%m%d'), DATE_FORMAT(dd1.DateTime,'%H:%i'), ROUND((dd1.ETotalToday-dd2.EtotalToday)*1000), dd1.CurrentPower, dd1.DateTime FROM DayData as dd1 join DayData as dd2 on dd2.DateTime=DATE_FORMAT(dd1.DateTime,'%Y-%m-%d 00:00:00') WHERE dd1.DateTime>=Date_Sub(CURDATE(),INTERVAL 1 DAY) and dd1.PVOutput IS NULL and dd1.CurrentPower>0 ORDER BY dd1.DateTime ASC limit {})", batch_count);
+                            auto result = mysql_connection.ExecuteQuery(query, flag.debug);
                             while ((row1 = mysql_fetch_row(result.res)))  //Need to update these
                             {
-                                snprintf(SQLQUERY, sizeof(SQLQUERY), "UPDATE DayData set PVOutput=NOW() WHERE DateTime=\"%s\"  ", row1[4]);
-                                mysql_connection.ExecuteQuery(SQLQUERY, flag.debug);
+                                const auto query_update = fmt::format("UPDATE DayData set PVOutput=NOW() WHERE DateTime=\"{}\"", row1[4]);
+                                mysql_connection.ExecuteQuery(query_update, flag.debug);
                             }
                         }
                     }
@@ -1715,7 +1744,7 @@ int main(int argc, char **argv)
     }
 
     if ((flag.repost == 1) && (error == 0)) {
-        printf("\nrepost\n");  //getchar();
+        fmt::print("\nrepost\n");  //getchar();
         sma_repost(&conf, &flag);
     }
 

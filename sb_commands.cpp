@@ -104,7 +104,6 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
     unsigned char timestr[25] = {0};
     ReadRecordType readRecord;
     char *lineread;
-    unsigned char *last_sent;
     unsigned char *data;
     char BTAddressBuf[20];
     char tt[10] = {48, 48, 48, 48, 48, 48, 48, 48, 48, 48};
@@ -137,7 +136,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
     size_t len;
     while ((read = getline(&line, &len, fp)) != -1) {  //read line from sma.in
         (*linenum)++;
-        last_sent = (unsigned char *)malloc(sizeof(unsigned char));
+        auto *last_sent = (unsigned char *)malloc(sizeof(unsigned char));
         if (last_sent == nullptr) {
             printf("\nOut of memory\n");
             return (-1);

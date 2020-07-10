@@ -80,7 +80,7 @@ int UpdateLiveList(FlagType *flag, UnitType *unit, const char *format, time_t id
 
 int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE *fp, int *linenum, ArchDataType **archdatalist, int *archdatalen, LiveDataType **livedatalist, int *livedatalen)
 {
-    char *line;
+
     ssize_t read = 0;
     int cc = 0, rr = 0;
     int datalen = 0;
@@ -88,7 +88,6 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
     int error = 0;
     int togo = 0;
     int finished;
-    time_t reporttime;
     time_t fromtime;
     time_t totime;
     time_t idate;
@@ -131,22 +130,26 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
     dest_address[1] = conv(strtok(nullptr, ":"));
     dest_address[0] = conv(strtok(nullptr, ":"));
     /* get the report time - used in various places */
-    reporttime = time(nullptr);  //get time in seconds since epoch (1/1/1970)
+    auto reporttime = time(nullptr);  //get time in seconds since epoch (1/1/1970)
 
-    size_t len;
+    char *line = nullptr;
+    size_t len = 0;
     while ((read = getline(&line, &len, fp)) != -1) {  //read line from sma.in
+
         (*linenum)++;
         auto *last_sent = (unsigned char *)malloc(sizeof(unsigned char));
         if (last_sent == nullptr) {
             printf("\nOut of memory\n");
             return (-1);
         }
+
         lineread = strtok(line, " ;");
         if (lineread[0] == ':') {  //See if line is something we need to receive
             if (flag->debug == 1)
                 printf("\nCommand sequence finished\n");
             break;
         }
+
         if (!strcmp(lineread, "R")) {  //See if line is something we need to receive
             if (flag->debug == 1) printf("[%d] %s Waiting for string\n", (*linenum), debugdate());
             cc = 0;

@@ -1613,9 +1613,11 @@ int main(int argc, char **argv)
     if ((flag.mysql == 1) && (error == 0)) {
         /* Connect to database */
         auto mysql_connection = MySQLConnection(conf.MySqlHost, conf.MySqlUser, conf.MySqlPwd, conf.MySqlDatabase);
-        for (int i = 1; i < archdatalen; i++)  //Start at 1 as the first record is a dummy
+        for (int i = 1; i < archdatalen; ++i)  //Start at 1 as the first record is a dummy
         {
-            const auto query = fmt::format("INSERT INTO DayData ( DateTime, Inverter, Serial, CurrentPower, EtotalToday ) VALUES ( FROM_UNIXTIME({}),\'{}\',{},{:0.f}, {:.3f} ) ON DUPLICATE KEY UPDATE DateTime=Datetime, Inverter=VALUES(Inverter), Serial=VALUES(Serial), CurrentPower=VALUES(CurrentPower), EtotalToday=VALUES(EtotalToday)", (archdatalist + i)->date, (archdatalist + i)->inverter, (archdatalist + i)->serial, (archdatalist + i)->current_value, (archdatalist + i)->accum_value);
+            const auto &data = *(archdatalist + i);
+            const auto query = fmt::format("INSERT INTO DayData ( DateTime, Inverter, Serial, CurrentPower, EtotalToday ) VALUES ( FROM_UNIXTIME({}),\'{}\',{},{:.0f}, {:.3f} ) ON DUPLICATE KEY UPDATE DateTime=Datetime, Inverter=VALUES(Inverter), Serial=VALUES(Serial), CurrentPower=VALUES(CurrentPower), EtotalToday=VALUES(EtotalToday)",
+                                           data.date, data.inverter, data.serial, data.current_value, data.accum_value);
             mysql_connection.ExecuteQuery(query, flag.debug);
         }
 

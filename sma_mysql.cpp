@@ -241,7 +241,10 @@ void live_mysql(ConfType conf, bool debug, LiveDataType *livedatalist, int lived
 
     auto mysql_connection = MySQLConnection(conf.MySqlHost, conf.MySqlUser, conf.MySqlPwd, conf.MySqlDatabase);
     for (int i = 0; i < livedatalen; i++) {
-        loctime = localtime(&(livedatalist + i)->date);
+
+        const auto &data = *(livedatalist + i);
+
+        loctime = localtime(&data.date);
         day = loctime->tm_mday;
         month = loctime->tm_mon + 1;
         year = loctime->tm_year + 1900;
@@ -250,8 +253,9 @@ void live_mysql(ConfType conf, bool debug, LiveDataType *livedatalist, int lived
         second = loctime->tm_sec;
 
         auto live_data = true;
-        if ((livedatalist + i)->Persistent == 1) {
-            const auto query = fmt::format(R"(SELECT IF (Value = "{}",NULL,Value) FROM LiveData where Inverter="{}" and Serial={} and Description="{}" ORDER BY DateTime DESC LIMIT 1)", (livedatalist + i)->Value, (livedatalist + i)->inverter, (livedatalist + i)->serial, (livedatalist + i)->Description);
+        if (data.Persistent == 1) {
+            const auto query = fmt::format(R"(SELECT IF (Value = "{}",NULL,Value) FROM LiveData where Inverter="{}" and Serial={} and Description="{}" ORDER BY DateTime DESC LIMIT 1)",
+                                           data.Value, data.inverter, data.serial, data.Description);
 
             MYSQL_ROW row;
             if (auto result = mysql_connection.ExecuteQuery(query, debug); (row = mysql_fetch_row(result.res)))  //if there is a result, update the row
@@ -264,7 +268,8 @@ void live_mysql(ConfType conf, bool debug, LiveDataType *livedatalist, int lived
 
         if (live_data) {
             const auto datetime = fmt::format("{}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}", year, month, day, hour, minute, second);
-            const auto query = fmt::format(R"(INSERT INTO LiveData ( DateTime, Inverter, Serial, Description, Value, Units ) VALUES ( '{}', '{}', {}, '{}', '{}', '{}'  ) ON DUPLICATE KEY UPDATE DateTime=Datetime, Inverter=VALUES(Inverter), Serial=VALUES(Serial), Description=VALUES(Description), Description=VALUES(Description), Value=VALUES(Value), Units=VALUES(Units))", datetime, (livedatalist + i)->inverter, (livedatalist + i)->serial, (livedatalist + i)->Description, (livedatalist + i)->Value, (livedatalist + i)->Units);
+            const auto query = fmt::format(R"(INSERT INTO LiveData ( DateTime, Inverter, Serial, Description, Value, Units ) VALUES ( '{}', '{}', {}, '{}', '{}', '{}'  ) ON DUPLICATE KEY UPDATE DateTime=Datetime, Inverter=VALUES(Inverter), Serial=VALUES(Serial), Description=VALUES(Description), Description=VALUES(Description), Value=VALUES(Value), Units=VALUES(Units))",
+                                           datetime, data.inverter, data.serial, data.Description, data.Value, data.Units);
             mysql_connection.ExecuteQuery(query, debug);
         }
     }

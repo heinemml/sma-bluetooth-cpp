@@ -50,7 +50,7 @@ MySQLResult MySQLConnection::ExecuteQuery(const std::string &query, bool debug)
 int install_mysql_tables(ConfType *conf, FlagType *flag, const char *SCHEMA)
 /*  Do initial mysql table creationsa */
 {
-    int found = 0;
+    auto found = false;
     MYSQL_ROW row;
 
     auto mysql_connection = MySQLConnection(conf->MySqlHost, conf->MySqlUser, conf->MySqlPwd, conf->MySqlDatabase);
@@ -59,12 +59,12 @@ int install_mysql_tables(ConfType *conf, FlagType *flag, const char *SCHEMA)
     while ((row = mysql_fetch_row(result.res)))  //if there is a result, update the row
     {
         if (strcmp(row[0], conf->MySqlDatabase) == 0) {
-            found = 1;
+            found = true;
             printf("Database exists - exiting");
         }
     }
 
-    if (found == 0) {
+    if (found) {
 
         {
             const auto query = fmt::format("CREATE DATABASE IF NOT EXISTS {}", conf->MySqlDatabase);
@@ -146,40 +146,37 @@ int install_mysql_tables(ConfType *conf, FlagType *flag, const char *SCHEMA)
     return found;
 }
 
+int get_schema_version(MySQLConnection &conn, unsigned int debug)
+{
+    MYSQL_ROW row;
+    if (auto result = conn.ExecuteQuery("SELECT data FROM settings WHERE value=\'schema\'", debug);
+        (row = mysql_fetch_row(result.res)))  //if there is a result, update the row
+    {
+        return atoi(row[0]);
+    }
+
+    return 0;
+}
+
 void update_mysql_tables(ConfType *conf, FlagType *flag)
 /*  Do mysql table schema updates */
 {
-    int schema_value = 0;
-    MYSQL_ROW row;
-    char SQLQUERY[1000];
-
     auto mysql_connection = MySQLConnection(conf->MySqlHost, conf->MySqlUser, conf->MySqlPwd, conf->MySqlDatabase);
-    sprintf(SQLQUERY, "USE  %s", conf->MySqlDatabase);
-    mysql_connection.ExecuteQuery(SQLQUERY, flag->debug);
 
     /*Check current schema value*/
-    if (auto result = mysql_connection.ExecuteQuery("SELECT data FROM settings WHERE value=\'schema\'", flag->debug);
-        (row = mysql_fetch_row(result.res)))  //if there is a result, update the row
-    {
-        schema_value = atoi(row[0]);
-    }
+    int schema_value = get_schema_version(mysql_connection, flag->debug);
 
     if (schema_value == 1) {  //Upgrade from 1 to 2
         mysql_connection.ExecuteQuery("ALTER TABLE `DayData` CHANGE `ETotalToday` `ETotalToday` DECIMAL(10,3) NULL DEFAULT NULL", flag->debug);
         mysql_connection.ExecuteQuery("UPDATE `settings` SET `value` = \'schema\', `data` = 2", flag->debug);
-    }
-    /*Check current schema value*/
 
-    sprintf(SQLQUERY, "SELECT data FROM settings WHERE value=\'schema\' ");
-    if (auto result = mysql_connection.ExecuteQuery(SQLQUERY, flag->debug); (row = mysql_fetch_row(result.res)))  //if there is a result, update the row
-    {
-        schema_value = atoi(row[0]);
+        schema_value = get_schema_version(mysql_connection, flag->debug);
     }
 
     if (schema_value == 2) {  //Upgrade from 2 to 3
-        const auto query =
-            "CREATE TABLE `LiveData` ( \
-		`   id` BIGINT NOT NULL AUTO_INCREMENT , \
+        mysql_connection.ExecuteQuery(
+            "CREATE TABLE `LiveData` (\
+            `id` BIGINT NOT NULL AUTO_INCREMENT , \
            	`DateTime` datetime NOT NULL, \
            	`Inverter` varchar(10) NOT NULL, \
            	`Serial` varchar(40) NOT NULL, \
@@ -189,26 +186,27 @@ void update_mysql_tables(ConfType *conf, FlagType *flag)
            	`CHANGETIME` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE CURRENT_TIMESTAMP, \
            	UNIQUE KEY (`DateTime`,`Inverter`,`Serial`,`Description`), \
 		    PRIMARY KEY ( `id` ) \
-		    ) ENGINE = MYISAM";
-        mysql_connection.ExecuteQuery(query, flag->debug);
-
+		    ) ENGINE = MYISAM",
+            flag->debug);
         mysql_connection.ExecuteQuery("UPDATE `settings` SET `value` = \'schema\', `data` = 3", flag->debug);
+
+        schema_value = get_schema_version(mysql_connection, flag->debug);
     }
 
     if (schema_value == 3) {  //Upgrade from 3 to 4
-        {
-            const auto query = "ALTER TABLE `DayData` CHANGE `Inverter` `Inverter` varchar(30) NOT NULL, CHANGE `Serial` `Serial` varchar(40) NOT NULL";
-            mysql_connection.ExecuteQuery(query, flag->debug);
-        }
-        {
-            const auto query = "ALTER TABLE `LiveData` CHANGE `Inverter` `Inverter` varchar(30) NOT NULL, CHANGE `Serial` `Serial` varchar(40) NOT NULL, CHANGE `Description` `Description` varchar(30) NOT NULL, CHANGE `Value` `Value` varchar(30), CHANGE `Units` `Units` varchar(20) NULL DEFAULT NULL ";
-            mysql_connection.ExecuteQuery(query, flag->debug);
-        }
 
-        {
-            const auto query = "UPDATE `settings` SET `value` = \'schema\', `data` = 4";
-            mysql_connection.ExecuteQuery(query, flag->debug);
-        }
+        mysql_connection.ExecuteQuery(
+            "ALTER TABLE `DayData` CHANGE `Inverter` `Inverter` varchar(30) NOT NULL,"
+            "CHANGE `Serial` `Serial` varchar(40) NOT NULL",
+            flag->debug);
+
+        mysql_connection.ExecuteQuery(
+            "ALTER TABLE `LiveData` CHANGE `Inverter` `Inverter` varchar(30) NOT NULL,"
+            " CHANGE `Serial` `Serial` varchar(40) NOT NULL, CHANGE `Description` `Description` varchar(30) NOT NULL,"
+            " CHANGE `Value` `Value` varchar(30), CHANGE `Units` `Units` varchar(20) NULL DEFAULT NULL ",
+            flag->debug);
+
+        mysql_connection.ExecuteQuery("UPDATE `settings` SET `value` = \'schema\', `data` = 4", flag->debug);
     }
 }
 
@@ -240,7 +238,6 @@ void live_mysql(ConfType conf, bool debug, LiveDataType *livedatalist, int lived
 {
     struct tm *loctime;
     int day, month, year, hour, minute, second;
-    MYSQL_ROW row;
 
     auto mysql_connection = MySQLConnection(conf.MySqlHost, conf.MySqlUser, conf.MySqlPwd, conf.MySqlDatabase);
     for (int i = 0; i < livedatalen; i++) {
@@ -256,6 +253,7 @@ void live_mysql(ConfType conf, bool debug, LiveDataType *livedatalist, int lived
         if ((livedatalist + i)->Persistent == 1) {
             const auto query = fmt::format(R"(SELECT IF (Value = "{}",NULL,Value) FROM LiveData where Inverter="{}" and Serial={} and Description="{}" ORDER BY DateTime DESC LIMIT 1)", (livedatalist + i)->Value, (livedatalist + i)->inverter, (livedatalist + i)->serial, (livedatalist + i)->Description);
 
+            MYSQL_ROW row;
             if (auto result = mysql_connection.ExecuteQuery(query, debug); (row = mysql_fetch_row(result.res)))  //if there is a result, update the row
             {
                 if (row[0] == nullptr) {

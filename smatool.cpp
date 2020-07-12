@@ -1507,8 +1507,8 @@ int main(int argc, char **argv)
     int max_output;
     unsigned char tzhex[2] = {0};
     MYSQL_ROW row, row1;
-    int archdatalen = 0, livedatalen = 0;
-    ArchDataType *archdatalist = nullptr;
+    int livedatalen = 0;
+    ArchDataList archdatalist{};
     LiveDataType *livedatalist = nullptr;
 
     char sunrise_time[6], sunset_time[6];
@@ -1589,23 +1589,22 @@ int main(int argc, char **argv)
         else
             fp = fopen("sma.in", "r");
 
-        InverterCommand("init", &conf, &flag, &unit, &bt_sock, fp, &archdatalist, &archdatalen, &livedatalist, &livedatalen);
-        InverterCommand("login", &conf, &flag, &unit, &bt_sock, fp, &archdatalist, &archdatalen, &livedatalist, &livedatalen);
-        InverterCommand("typelabel", &conf, &flag, &unit, &bt_sock, fp, &archdatalist, &archdatalen, &livedatalist, &livedatalen);
-        InverterCommand("typelabel", &conf, &flag, &unit, &bt_sock, fp, &archdatalist, &archdatalen, &livedatalist, &livedatalen);
-        InverterCommand("startuptime", &conf, &flag, &unit, &bt_sock, fp, &archdatalist, &archdatalen, &livedatalist, &livedatalen);
-        InverterCommand("getacvoltage", &conf, &flag, &unit, &bt_sock, fp, &archdatalist, &archdatalen, &livedatalist, &livedatalen);
-        InverterCommand("getenergyproduction", &conf, &flag, &unit, &bt_sock, fp, &archdatalist, &archdatalen, &livedatalist, &livedatalen);
-        InverterCommand("getspotdcpower", &conf, &flag, &unit, &bt_sock, fp, &archdatalist, &archdatalen, &livedatalist, &livedatalen);
-        InverterCommand("getspotdcvoltage", &conf, &flag, &unit, &bt_sock, fp, &archdatalist, &archdatalen, &livedatalist, &livedatalen);
-        InverterCommand("getspotacpower", &conf, &flag, &unit, &bt_sock, fp, &archdatalist, &archdatalen, &livedatalist, &livedatalen);
-        InverterCommand("getgridfreq", &conf, &flag, &unit, &bt_sock, fp, &archdatalist, &archdatalen, &livedatalist, &livedatalen);
-        InverterCommand("maxACPower", &conf, &flag, &unit, &bt_sock, fp, &archdatalist, &archdatalen, &livedatalist, &livedatalen);
-        InverterCommand("maxACPowerTotal", &conf, &flag, &unit, &bt_sock, fp, &archdatalist, &archdatalen, &livedatalist, &livedatalen);
-        InverterCommand("ACPowerTotal", &conf, &flag, &unit, &bt_sock, fp, &archdatalist, &archdatalen, &livedatalist, &livedatalen);
-        InverterCommand("DeviceStatus", &conf, &flag, &unit, &bt_sock, fp, &archdatalist, &archdatalen, &livedatalist, &livedatalen);
-        InverterCommand("getrangedata", &conf, &flag, &unit, &bt_sock, fp, &archdatalist, &archdatalen, &livedatalist, &livedatalen);
-        InverterCommand("logoff", &conf, &flag, &unit, &bt_sock, fp, &archdatalist, &archdatalen, &livedatalist, &livedatalen);
+        InverterCommand("init", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
+        InverterCommand("login", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
+        InverterCommand("typelabel", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
+        InverterCommand("startuptime", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
+        InverterCommand("getacvoltage", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
+        InverterCommand("getenergyproduction", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
+        InverterCommand("getspotdcpower", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
+        InverterCommand("getspotdcvoltage", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
+        InverterCommand("getspotacpower", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
+        InverterCommand("getgridfreq", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
+        InverterCommand("maxACPower", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
+        InverterCommand("maxACPowerTotal", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
+        InverterCommand("ACPowerTotal", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
+        InverterCommand("DeviceStatus", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
+        InverterCommand("getrangedata", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
+        InverterCommand("logoff", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
 
         close(bt_sock);
     }
@@ -1613,9 +1612,8 @@ int main(int argc, char **argv)
     if ((flag.mysql == 1) && (error == 0)) {
         /* Connect to database */
         auto mysql_connection = MySQLConnection(conf.MySqlHost, conf.MySqlUser, conf.MySqlPwd, conf.MySqlDatabase);
-        for (int i = 1; i < archdatalen; ++i)  //Start at 1 as the first record is a dummy
+        for (const auto &data : archdatalist)  //Start at 1 as the first record is a dummy
         {
-            const auto &data = *(archdatalist + i);
             const auto query = fmt::format("INSERT INTO DayData ( DateTime, Inverter, Serial, CurrentPower, EtotalToday ) VALUES ( FROM_UNIXTIME({}),\'{}\',{},{:.0f}, {:.3f} ) ON DUPLICATE KEY UPDATE DateTime=Datetime, Inverter=VALUES(Inverter), Serial=VALUES(Serial), CurrentPower=VALUES(CurrentPower), EtotalToday=VALUES(EtotalToday)",
                                            data.date, data.inverter, data.serial, data.current_value, data.accum_value);
             mysql_connection.ExecuteQuery(query, flag.debug);
@@ -1630,9 +1628,6 @@ int main(int argc, char **argv)
             live_mysql(conf, flag.debug, livedatalist, livedatalen);
             printf("\nbefore update to PVOutput");
             getchar();
-            /* Connect to database */
-            auto mysql_connection = MySQLConnection(conf.MySqlHost, conf.MySqlUser, conf.MySqlPwd, conf.MySqlDatabase);
-
             {
                 unsigned long long inverter_serial = (unit[0].Serial[0] << 24) + (unit[0].Serial[1] << 16) + (unit[0].Serial[2] << 8) + unit[0].Serial[3];
                 const auto query = fmt::format(R"(SELECT Value FROM LiveData WHERE Inverter = '{}' and Serial='{}' and Description='Max Phase 1' ORDER BY DateTime DESC LIMIT 1)", unit[0].Inverter, inverter_serial);
@@ -1658,11 +1653,11 @@ int main(int argc, char **argv)
                         if (curl) {
                             curl_easy_setopt(curl, CURLOPT_URL, compurl.c_str());
                             curl_easy_setopt(curl, CURLOPT_FAILONERROR, compurl.c_str());
-                            CURLcode result = curl_easy_perform(curl);
+                            CURLcode curl_result = curl_easy_perform(curl);
                             if (flag.debug == 1)
                                 fmt::print("result = {}\n", result);
                             curl_easy_cleanup(curl);
-                            if (result == 0) {
+                            if (curl_result == 0) {
                                 const auto query_update = fmt::format("UPDATE DayData  set PVOutput=NOW() WHERE DateTime=\"{}\"", row[4]);
                                 mysql_connection.ExecuteQuery(query_update, flag.debug);
                             }
@@ -1692,8 +1687,8 @@ int main(int argc, char **argv)
                                 fmt::print("result = {}\n", curl_result);
                             curl_easy_cleanup(curl);
                             if (curl_result == 0) {
-                                const auto query = fmt::format(R"(SELECT DATE_FORMAT(dd1.DateTime,'%Y%m%d'), DATE_FORMAT(dd1.DateTime,'%H:%i'), ROUND((dd1.ETotalToday-dd2.EtotalToday)*1000), dd1.CurrentPower, dd1.DateTime FROM DayData as dd1 join DayData as dd2 on dd2.DateTime=DATE_FORMAT(dd1.DateTime,'%Y-%m-%d 00:00:00') WHERE dd1.DateTime>=Date_Sub(CURDATE(),INTERVAL 13 DAY) and dd1.PVOutput IS NULL and dd1.CurrentPower>0 ORDER BY dd1.DateTime ASC limit {})", batch_count);
-                                auto result_to_update = mysql_connection.ExecuteQuery(query, flag.debug);
+                                const auto query_date = fmt::format(R"(SELECT DATE_FORMAT(dd1.DateTime,'%Y%m%d'), DATE_FORMAT(dd1.DateTime,'%H:%i'), ROUND((dd1.ETotalToday-dd2.EtotalToday)*1000), dd1.CurrentPower, dd1.DateTime FROM DayData as dd1 join DayData as dd2 on dd2.DateTime=DATE_FORMAT(dd1.DateTime,'%Y-%m-%d 00:00:00') WHERE dd1.DateTime>=Date_Sub(CURDATE(),INTERVAL 13 DAY) and dd1.PVOutput IS NULL and dd1.CurrentPower>0 ORDER BY dd1.DateTime ASC limit {})", batch_count);
+                                auto result_to_update = mysql_connection.ExecuteQuery(query_date, flag.debug);
 
                                 while ((row1 = mysql_fetch_row(result_to_update.res)))  //Need to update these
                                 {
@@ -1715,12 +1710,12 @@ int main(int argc, char **argv)
                             fmt::print("url = {}\n", compurl);
                         curl_easy_setopt(curl, CURLOPT_URL, compurl.c_str());
                         curl_easy_setopt(curl, CURLOPT_FAILONERROR, compurl.c_str());
-                        CURLcode result = curl_easy_perform(curl);
+                        CURLcode curl_result = curl_easy_perform(curl);
                         sleep(1);
                         if (flag.debug == 1)
                             fmt::print("result = {}\n", result);
                         curl_easy_cleanup(curl);
-                        if (result == 0) {
+                        if (curl_result == 0) {
                             const auto query = fmt::format(R"(SELECT DATE_FORMAT(dd1.DateTime,'%Y%m%d'), DATE_FORMAT(dd1.DateTime,'%H:%i'), ROUND((dd1.ETotalToday-dd2.EtotalToday)*1000), dd1.CurrentPower, dd1.DateTime FROM DayData as dd1 join DayData as dd2 on dd2.DateTime=DATE_FORMAT(dd1.DateTime,'%Y-%m-%d 00:00:00') WHERE dd1.DateTime>=Date_Sub(CURDATE(),INTERVAL 1 DAY) and dd1.PVOutput IS NULL and dd1.CurrentPower>0 ORDER BY dd1.DateTime ASC limit {})", batch_count);
                             auto result = mysql_connection.ExecuteQuery(query, flag.debug);
                             while ((row1 = mysql_fetch_row(result.res)))  //Need to update these
@@ -1736,10 +1731,6 @@ int main(int argc, char **argv)
         }
     }
 
-    if (archdatalen > 0) {
-        free(archdatalist);
-        archdatalen = 0;
-    }
     if (livedatalen > 0) {
         free(livedatalist);
         livedatalen = 0;

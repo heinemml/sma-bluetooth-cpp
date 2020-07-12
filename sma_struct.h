@@ -19,6 +19,7 @@
 #define H_SMASTRUCT
 
 #include <ctime>
+#include <vector>
 
 #define DATELENGTH 20
 
@@ -34,13 +35,15 @@ typedef struct {
     int persistent;
 } ReturnType;
 
-typedef struct {
+struct ArchDataType {
     time_t date;
     char inverter[30];
     unsigned long long serial;
     float accum_value;
     float current_value;
-} ArchDataType;
+};
+
+using ArchDataList = std::vector<ArchDataType>;
 
 typedef struct {
     time_t date;

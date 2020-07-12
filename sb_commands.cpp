@@ -78,9 +78,8 @@ int UpdateLiveList(FlagType *flag, UnitType *unit, const char *format, time_t id
     return 0;
 }
 
-int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE *fp, int *linenum, ArchDataType **archdatalist, int *archdatalen, LiveDataType **livedatalist, int *livedatalen)
+int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE *fp, int *linenum, ArchDataList &archdatalist, LiveDataType **livedatalist, int *livedatalen)
 {
-
     ssize_t read = 0;
     int cc = 0, rr = 0;
     int datalen = 0;
@@ -623,10 +622,12 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
 
         if (!strcmp(lineread, "E")) {  //See if line is something we need to extract
             if (readRecord.Status[0] == 0xe0) {
-                if (flag->debug == 1) printf("\nThere is no data currently available %s\n", debugdate());
+                if (flag->debug == 1) printf("\n%s There is no data to extract, waiting", debugdate());
                 // Read the rest of the records
-                while (read_bluetooth(conf, flag, &readRecord, s, &rr, received, cc, last_sent, &terminated) == 0)
-                    ;
+                while (read_bluetooth(conf, flag, &readRecord, s, &rr, received, cc, last_sent, &terminated) == 0) {
+                    if (flag->debug == 1) printf(".");
+                }
+                if (flag->debug == 1) printf("\n");
             } else {
                 if (flag->debug == 1) printf("[%d] %s Extracting\n", (*linenum), debugdate());
                 cc = 0;
@@ -756,7 +757,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                                                 prev_idate = idate - 300;
 
                                             ConvertStreamtoFloat(datarecord + 4, 8, &gtotal);
-                                            if ((*archdatalen) == 0)
+                                            if (archdatalist.empty())
                                                 ptotal = gtotal;
                                             printf("\n%d/%d/%4d %02d:%02d:%02d  total=%.3f Kwh current=%.0f Watts togo=%d i=%d\n", day, month, year, hour, minute, second, gtotal / 1000, (gtotal - ptotal) * 12, togo, i);
                                             if (idate != prev_idate + 300) {
@@ -764,17 +765,14 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                                                 error = 1;
                                                 // break;
                                             }
-                                            if ((*archdatalen) == 0)
-                                                (*archdatalist) = (ArchDataType *)malloc(sizeof(ArchDataType));
-                                            else
-                                                (*archdatalist) = (ArchDataType *)realloc((*archdatalist), sizeof(ArchDataType) * ((*archdatalen) + 1));
-                                            ((*archdatalist) + (*archdatalen))->date = idate;
-                                            strcpy(((*archdatalist) + (*archdatalen))->inverter, unit[0]->Inverter);
+
+                                            auto &element = archdatalist.emplace_back();
+                                            element.date = idate;
+                                            strcpy(element.inverter, unit[0]->Inverter);
                                             inverter_serial = (unit[0]->Serial[0] << 24) + (unit[0]->Serial[1] << 16) + (unit[0]->Serial[2] << 8) + unit[0]->Serial[3];
-                                            ((*archdatalist) + (*archdatalen))->serial = inverter_serial;
-                                            ((*archdatalist) + (*archdatalen))->accum_value = gtotal / 1000;
-                                            ((*archdatalist) + (*archdatalen))->current_value = (gtotal - ptotal) * 12;
-                                            (*archdatalen)++;
+                                            element.serial = inverter_serial;
+                                            element.accum_value = gtotal / 1000;
+                                            element.current_value = (gtotal - ptotal) * 12;
                                             ptotal = gtotal;
                                             j = 0;  //get ready for another record
                                         }
@@ -998,7 +996,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
  * Run a command on an inverter
  *
  */
-void InverterCommand(const char *command, ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE *fp, ArchDataType **archdatalist, int *archdatalen, LiveDataType **livedatalist, int *livedatalen)
+void InverterCommand(const char *command, ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE *fp, ArchDataList &archdatalist, LiveDataType **livedatalist, int *livedatalen)
 {
     if (fseek(fp, 0L, 0) < 0)
         printf("\nError");
@@ -1008,7 +1006,7 @@ void InverterCommand(const char *command, ConfType *conf, FlagType *flag, UnitTy
     printf("================\n");
 
     if (auto line_num = GetLine(command, fp); line_num > 0) {
-        if (ProcessCommand(conf, flag, unit, s, fp, &line_num, archdatalist, archdatalen, livedatalist, livedatalen) < 0) {
+        if (ProcessCommand(conf, flag, unit, s, fp, &line_num, archdatalist, livedatalist, livedatalen) < 0) {
             printf("\nError need to do something");
             getchar();
         }

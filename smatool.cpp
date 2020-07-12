@@ -1494,6 +1494,38 @@ char *debugdate()
     return result;
 }
 
+bool post_pvoutput(const std::string &batch_string, size_t batch_count, MySQLConnection &mysql_connection, const std::string &PVOutputKey, const std::string &PVOutputSid, bool debug)
+{
+    CURL *curl = curl_easy_init();
+    if (!curl)
+        return false;
+
+    const auto compurl = fmt::format("http://pvoutput.org/service/r2/addbatchstatus.jsp?data={}&key={}&sid={}", batch_string, PVOutputKey, PVOutputSid);
+    if (debug == 1)
+        fmt::print("url = {}\n", compurl);
+    curl_easy_setopt(curl, CURLOPT_URL, compurl.c_str());
+    curl_easy_setopt(curl, CURLOPT_FAILONERROR, compurl.c_str());
+    CURLcode curl_result = curl_easy_perform(curl);
+    sleep(1);
+    if (debug == 1)
+        fmt::print("result = {}\n", curl_result);
+    curl_easy_cleanup(curl);
+    if (curl_result != 0)
+        return false;
+
+    const auto query_date = fmt::format(R"(SELECT DATE_FORMAT(dd1.DateTime,'%Y%m%d'), DATE_FORMAT(dd1.DateTime,'%H:%i'), ROUND((dd1.ETotalToday-dd2.EtotalToday)*1000), dd1.CurrentPower, dd1.DateTime FROM DayData as dd1 join DayData as dd2 on dd2.DateTime=DATE_FORMAT(dd1.DateTime,'%Y-%m-%d 00:00:00') WHERE dd1.DateTime>=Date_Sub(CURDATE(),INTERVAL 13 DAY) and dd1.PVOutput IS NULL and dd1.CurrentPower>0 ORDER BY dd1.DateTime ASC limit {})", batch_count);
+    auto result_to_update = mysql_connection.ExecuteQuery(query_date, debug);
+
+    MYSQL_ROW row;
+    while ((row = mysql_fetch_row(result_to_update.res)))  //Need to update these
+    {
+        const auto query_update = fmt::format("UPDATE DayData set PVOutput=NOW() WHERE DateTime=\"{}\"", row[4]);
+        mysql_connection.ExecuteQuery(query_update, debug);
+    }
+
+    return true;
+}
+
 int main(int argc, char **argv)
 {
     FILE *fp;
@@ -1506,7 +1538,7 @@ int main(int argc, char **argv)
     int error = 0;
     int max_output;
     unsigned char tzhex[2] = {0};
-    MYSQL_ROW row, row1;
+    MYSQL_ROW row;
     int livedatalen = 0;
     ArchDataList archdatalist{};
     LiveDataType *livedatalist = nullptr;
@@ -1621,9 +1653,6 @@ int main(int argc, char **argv)
 
         if (flag.post == 1) {
 
-            char batch_string[1000];
-            int batch_count = 0;
-
             //Update Mysql with live data
             live_mysql(conf, flag.debug, livedatalist, livedatalen);
             printf("\nbefore update to PVOutput");
@@ -1640,7 +1669,6 @@ int main(int argc, char **argv)
 
             const auto query = fmt::format(R"(SELECT DATE_FORMAT(dd1.DateTime,'%Y%m%d'), DATE_FORMAT(dd1.DateTime,'%H:%i'), ROUND((dd1.ETotalToday-dd2.EtotalToday)*1000), if( dd1.CurrentPower < {0}, dd1.CurrentPower, {0} ), dd1.DateTime FROM DayData as dd1 join DayData as dd2 on dd2.DateTime=DATE_FORMAT(dd1.DateTime,'%Y-%m-%d 00:00:00') WHERE dd1.DateTime>=Date_Sub(CURDATE(),INTERVAL 13 DAY) and dd1.PVOutput IS NULL and dd1.CurrentPower>0 ORDER BY dd1.DateTime ASC)", max_output);
 
-            batch_count = 0;
             auto result = mysql_connection.ExecuteQuery(query, flag.debug);
             if (mysql_num_rows(result.res) == 1) {
                 if ((row = mysql_fetch_row(result.res)))  //Need to update these
@@ -1655,7 +1683,7 @@ int main(int argc, char **argv)
                             curl_easy_setopt(curl, CURLOPT_FAILONERROR, compurl.c_str());
                             CURLcode curl_result = curl_easy_perform(curl);
                             if (flag.debug == 1)
-                                fmt::print("result = {}\n", result);
+                                fmt::print("result = {}\n", curl_result);
                             curl_easy_cleanup(curl);
                             if (curl_result == 0) {
                                 const auto query_update = fmt::format("UPDATE DayData  set PVOutput=NOW() WHERE DateTime=\"{}\"", row[4]);
@@ -1665,67 +1693,27 @@ int main(int argc, char **argv)
                     }
                 }
             } else {
+                std::string batch_string{};
+                size_t batch_count{0};
                 while ((row = mysql_fetch_row(result.res)))  //Need to update these
                 {
                     sleep(2);
-                    if (batch_count > 0)
-                        snprintf(batch_string + strlen(batch_string), sizeof(batch_string), ";%s,%s,%s,%s", row[0], row[1], row[2], row[3]);
-                    else
-                        snprintf(batch_string, sizeof(batch_string), "%s,%s,%s,%s", row[0], row[1], row[2], row[3]);
-                    batch_count++;
-                    if (batch_count == 30) {
-                        CURL *curl = curl_easy_init();
-                        if (curl) {
-                            const auto compurl = fmt::format("http://pvoutput.org/service/r2/addbatchstatus.jsp?data={}&key={}&sid={}", batch_string, conf.PVOutputKey, conf.PVOutputSid);
-                            if (flag.debug == 1)
-                                fmt::print("url = {}\n", compurl);
-                            curl_easy_setopt(curl, CURLOPT_URL, compurl.c_str());
-                            curl_easy_setopt(curl, CURLOPT_FAILONERROR, compurl.c_str());
-                            CURLcode curl_result = curl_easy_perform(curl);
-                            sleep(1);
-                            if (flag.debug == 1)
-                                fmt::print("result = {}\n", curl_result);
-                            curl_easy_cleanup(curl);
-                            if (curl_result == 0) {
-                                const auto query_date = fmt::format(R"(SELECT DATE_FORMAT(dd1.DateTime,'%Y%m%d'), DATE_FORMAT(dd1.DateTime,'%H:%i'), ROUND((dd1.ETotalToday-dd2.EtotalToday)*1000), dd1.CurrentPower, dd1.DateTime FROM DayData as dd1 join DayData as dd2 on dd2.DateTime=DATE_FORMAT(dd1.DateTime,'%Y-%m-%d 00:00:00') WHERE dd1.DateTime>=Date_Sub(CURDATE(),INTERVAL 13 DAY) and dd1.PVOutput IS NULL and dd1.CurrentPower>0 ORDER BY dd1.DateTime ASC limit {})", batch_count);
-                                auto result_to_update = mysql_connection.ExecuteQuery(query_date, flag.debug);
+                    if (!batch_string.empty())
+                        batch_string.append(";");
 
-                                while ((row1 = mysql_fetch_row(result_to_update.res)))  //Need to update these
-                                {
-                                    const auto query_update = fmt::format("UPDATE DayData set PVOutput=NOW() WHERE DateTime=\"{}\"", row1[4]);
-                                    mysql_connection.ExecuteQuery(query_update, flag.debug);
-                                }
-                            } else
-                                break;
-                        }
+                    batch_string.append(fmt::format("{},{},{},{}", row[0], row[1], row[2], row[3]));
+                    ++batch_count;
+                    if (batch_count == 30) {
+                        auto success = post_pvoutput(batch_string, batch_count, mysql_connection, conf.PVOutputKey, conf.PVOutputSid, flag.debug);
+                        if (!success)
+                            break;
+
                         batch_count = 0;
-                        memset(batch_string, 0, sizeof(batch_string));
+                        batch_string.clear();
                     }
                 }
                 if (batch_count > 0) {
-                    CURL *curl = curl_easy_init();
-                    if (curl) {
-                        const auto compurl = fmt::format("http://pvoutput.org/service/r2/addbatchstatus.jsp?data={}&key={}&sid={}", batch_string, conf.PVOutputKey, conf.PVOutputSid);
-                        if (flag.debug == 1)
-                            fmt::print("url = {}\n", compurl);
-                        curl_easy_setopt(curl, CURLOPT_URL, compurl.c_str());
-                        curl_easy_setopt(curl, CURLOPT_FAILONERROR, compurl.c_str());
-                        CURLcode curl_result = curl_easy_perform(curl);
-                        sleep(1);
-                        if (flag.debug == 1)
-                            fmt::print("result = {}\n", result);
-                        curl_easy_cleanup(curl);
-                        if (curl_result == 0) {
-                            const auto query = fmt::format(R"(SELECT DATE_FORMAT(dd1.DateTime,'%Y%m%d'), DATE_FORMAT(dd1.DateTime,'%H:%i'), ROUND((dd1.ETotalToday-dd2.EtotalToday)*1000), dd1.CurrentPower, dd1.DateTime FROM DayData as dd1 join DayData as dd2 on dd2.DateTime=DATE_FORMAT(dd1.DateTime,'%Y-%m-%d 00:00:00') WHERE dd1.DateTime>=Date_Sub(CURDATE(),INTERVAL 1 DAY) and dd1.PVOutput IS NULL and dd1.CurrentPower>0 ORDER BY dd1.DateTime ASC limit {})", batch_count);
-                            auto result = mysql_connection.ExecuteQuery(query, flag.debug);
-                            while ((row1 = mysql_fetch_row(result.res)))  //Need to update these
-                            {
-                                const auto query_update = fmt::format("UPDATE DayData set PVOutput=NOW() WHERE DateTime=\"{}\"", row1[4]);
-                                mysql_connection.ExecuteQuery(query_update, flag.debug);
-                            }
-                        }
-                    }
-                    batch_count = 0;
+                    post_pvoutput(batch_string, batch_count, mysql_connection, conf.PVOutputKey, conf.PVOutputSid, flag.debug);
                 }
             }
         }

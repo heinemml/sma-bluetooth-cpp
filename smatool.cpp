@@ -1539,9 +1539,8 @@ int main(int argc, char **argv)
     int max_output;
     unsigned char tzhex[2] = {0};
     MYSQL_ROW row;
-    int livedatalen = 0;
     ArchDataList archdatalist{};
-    LiveDataType *livedatalist = nullptr;
+    LiveDataList livedatalist{};
 
     char sunrise_time[6], sunset_time[6];
 
@@ -1621,22 +1620,22 @@ int main(int argc, char **argv)
         else
             fp = fopen("sma.in", "r");
 
-        InverterCommand("init", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
-        InverterCommand("login", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
-        InverterCommand("typelabel", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
-        InverterCommand("startuptime", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
-        InverterCommand("getacvoltage", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
-        InverterCommand("getenergyproduction", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
-        InverterCommand("getspotdcpower", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
-        InverterCommand("getspotdcvoltage", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
-        InverterCommand("getspotacpower", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
-        InverterCommand("getgridfreq", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
-        InverterCommand("maxACPower", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
-        InverterCommand("maxACPowerTotal", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
-        InverterCommand("ACPowerTotal", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
-        InverterCommand("DeviceStatus", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
-        InverterCommand("getrangedata", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
-        InverterCommand("logoff", &conf, &flag, &unit, &bt_sock, fp, archdatalist, &livedatalist, &livedatalen);
+        InverterCommand("init", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
+        InverterCommand("login", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
+        InverterCommand("typelabel", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
+        InverterCommand("startuptime", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
+        InverterCommand("getacvoltage", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
+        InverterCommand("getenergyproduction", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
+        InverterCommand("getspotdcpower", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
+        InverterCommand("getspotdcvoltage", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
+        InverterCommand("getspotacpower", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
+        InverterCommand("getgridfreq", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
+        InverterCommand("maxACPower", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
+        InverterCommand("maxACPowerTotal", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
+        InverterCommand("ACPowerTotal", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
+        InverterCommand("DeviceStatus", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
+        InverterCommand("getrangedata", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
+        InverterCommand("logoff", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
 
         close(bt_sock);
     }
@@ -1654,7 +1653,7 @@ int main(int argc, char **argv)
         if (flag.post == 1) {
 
             //Update Mysql with live data
-            live_mysql(conf, flag.debug, livedatalist, livedatalen);
+            live_mysql(conf, flag.debug, livedatalist);
             printf("\nbefore update to PVOutput");
             getchar();
             {
@@ -1717,11 +1716,6 @@ int main(int argc, char **argv)
                 }
             }
         }
-    }
-
-    if (livedatalen > 0) {
-        free(livedatalist);
-        livedatalen = 0;
     }
 
     if ((flag.repost == 1) && (error == 0)) {

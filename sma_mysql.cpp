@@ -233,16 +233,14 @@ int check_schema(ConfType *conf, FlagType *flag, const char *SCHEMA)
     return found;
 }
 
-void live_mysql(ConfType conf, bool debug, LiveDataType *livedatalist, int livedatalen)
+void live_mysql(ConfType conf, bool debug, const LiveDataList &livedatalist)
 /* Live inverter values mysql update */
 {
     struct tm *loctime;
     int day, month, year, hour, minute, second;
 
     auto mysql_connection = MySQLConnection(conf.MySqlHost, conf.MySqlUser, conf.MySqlPwd, conf.MySqlDatabase);
-    for (int i = 0; i < livedatalen; i++) {
-
-        const auto &data = *(livedatalist + i);
+    for (const auto &data : livedatalist) {
 
         loctime = localtime(&data.date);
         day = loctime->tm_mday;

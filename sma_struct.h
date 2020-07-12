@@ -45,7 +45,7 @@ struct ArchDataType {
 
 using ArchDataList = std::vector<ArchDataType>;
 
-typedef struct {
+struct LiveDataType {
     time_t date;
     char inverter[30];
     unsigned long long serial;
@@ -53,7 +53,9 @@ typedef struct {
     char Value[30];
     char Units[30];
     int Persistent;
-} LiveDataType;
+};
+
+using LiveDataList = std::vector<LiveDataType>;
 
 typedef struct {
     char BTAddress[20];           /*--address  	-a 	*/

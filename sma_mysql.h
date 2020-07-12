@@ -29,4 +29,4 @@ private:
 int install_mysql_tables(ConfType *, FlagType *, const char *);
 void update_mysql_tables(ConfType *, FlagType *);
 int check_schema(ConfType *, FlagType *, const char *);
-void live_mysql(ConfType, bool debug, LiveDataType *, int);
+void live_mysql(ConfType, bool debug, const LiveDataList &);

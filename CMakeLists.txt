@@ -21,6 +21,7 @@ find_package(fmt)
 
 set(SOURCES
         almanac.cpp
+        bt_connection.cpp
         repost.cpp
         sb_commands.cpp
         sma_mysql.cpp

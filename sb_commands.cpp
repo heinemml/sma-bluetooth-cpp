@@ -15,34 +15,6 @@
 #include "sma_struct.h"
 #include "smatool.h"
 
-int ConnectSocket(ConfType *conf)
-{
-    //Try for a few connects
-    for (int i = 1; i < 20; i++) {
-        // allocate a socket
-        int sock = 0;
-        if ((sock = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM)) >= 0) {
-            // set the connection parameters (who to connect to)
-            struct sockaddr_rc addr {
-            };
-            addr.rc_family = AF_BLUETOOTH;
-            addr.rc_channel = (uint8_t)1;
-            str2ba(conf->BTAddress, &addr.rc_bdaddr);
-
-            // connect to server
-            int status = connect(sock, (struct sockaddr *)&addr, sizeof(addr));
-            if (status < 0) {
-                printf("Error connecting to %s\n", conf->BTAddress);
-                close(sock);
-                sock = 0;
-            } else {
-                //conected
-                return sock;
-            }
-        }
-    }
-    return -1;
-}
 /*
  * Update internal running list with live data for later processing
  */
@@ -72,7 +44,7 @@ int UpdateLiveList(FlagType *flag, UnitType *unit, const char *format, time_t id
     return 0;
 }
 
-int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE *fp, int *linenum, ArchDataList &archdatalist, LiveDataList &livedatalist)
+int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock, FILE *fp, int *linenum, ArchDataList &archdatalist, LiveDataList &livedatalist)
 {
     ssize_t read = 0;
     int cc = 0, rr = 0;
@@ -190,7 +162,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
             do {
                 if (already_read == 0)
                     rr = 0;
-                if ((already_read == 0) && (read_bluetooth(conf, flag, &readRecord, s, &rr, received, cc, last_sent, &terminated) != 0)) {
+                if ((already_read == 0) && (read_bluetooth(conf, flag, &readRecord, bt_sock, &rr, received, cc, last_sent, &terminated) != 0)) {
                     already_read = 0;
                     found = 0;
                     strcpy(lineread, "");
@@ -225,7 +197,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
         }
         if (!strcmp(lineread, "S")) {  //See if line is something we need to send
             //Empty the receive data ready for new command
-            while (((*linenum) > 22) && (empty_read_bluetooth(flag, &readRecord, s, &rr, received, &terminated) >= 0))
+            while (((*linenum) > 22) && (empty_read_bluetooth(flag, &readRecord, bt_sock, &rr, received, &terminated) >= 0))
                 ;
             if (flag->debug == 1) printf("[%d] %s Sending\n", (*linenum), debugdate());
             cc = 0;
@@ -609,7 +581,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
             }
             last_sent = (unsigned char *)realloc(last_sent, sizeof(unsigned char) * (cc));
             memcpy(last_sent, fl, cc);
-            write((*s), fl, cc);
+            write((bt_sock), fl, cc);
             already_read = 0;
             //check_send_error( &conf, &s, &rr, received, cc, last_sent, &terminated, &already_read );
         }
@@ -618,7 +590,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
             if (readRecord.Status[0] == 0xe0) {
                 if (flag->debug == 1) printf("\n%s There is no data to extract, waiting", debugdate());
                 // Read the rest of the records
-                while (read_bluetooth(conf, flag, &readRecord, s, &rr, received, cc, last_sent, &terminated) == 0) {
+                while (read_bluetooth(conf, flag, &readRecord, bt_sock, &rr, received, cc, last_sent, &terminated) == 0) {
                     if (flag->debug == 1) printf(".");
                 }
                 if (flag->debug == 1) printf("\n");
@@ -636,7 +608,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                             //printf("Current power = %i Watt\n",currentpower);
                             break;
                         case 5:  // extract current power $POW
-                            if ((data = ReadStream(conf, flag, &readRecord, s, received, &rr, data, &datalen, last_sent, cc, &terminated, &togo)) != nullptr) {
+                            if ((data = ReadStream(conf, flag, &readRecord, bt_sock, received, &rr, data, &datalen, last_sent, cc, &terminated, &togo)) != nullptr) {
                                 //printf( "\ndata=%02x:%02x:%02x:%02x:%02x:%02x\n", data[0], (data+1)[0], (data+2)[0], (data+3)[0], (data+4)[0], (data+5)[0] );
                                 if ((data + 3)[0] == 0x08)
                                     gap = 40;
@@ -721,7 +693,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                             break;
 
                         case 17:  // Test data
-                            if ((data = ReadStream(conf, flag, &readRecord, s, received, &rr, data, &datalen, last_sent, cc, &terminated, &togo)) != nullptr) {
+                            if ((data = ReadStream(conf, flag, &readRecord, bt_sock, received, &rr, data, &datalen, last_sent, cc, &terminated, &togo)) != nullptr) {
                                 printf("\n");
 
                                 free(data);
@@ -736,7 +708,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                             idate = 0;
                             printf("\n");
                             while (finished != 1) {
-                                if ((data = ReadStream(conf, flag, &readRecord, s, received, &rr, data, &datalen, last_sent, cc, &terminated, &togo)) != nullptr) {
+                                if ((data = ReadStream(conf, flag, &readRecord, bt_sock, received, &rr, data, &datalen, last_sent, cc, &terminated, &togo)) != nullptr) {
                                     size_t j = 0;
                                     for (int i = 0; i < datalen; i++) {
                                         datarecord[j] = data[i];
@@ -773,16 +745,8 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                                     }
                                     if (togo == 0)
                                         finished = 1;
-                                    else if (read_bluetooth(conf, flag, &readRecord, s, &rr, received, cc, last_sent, &terminated) != 0) {
+                                    else if (read_bluetooth(conf, flag, &readRecord, bt_sock, &rr, received, cc, last_sent, &terminated) != 0) {
                                         found = 0;
-                                        /*
-                                            if( (*archdatalen) > 0 )
-                                                free( archdatalist );
-                                            (*archdatalen)=0;
-                                            if( (*livedatalen) > 0 )
-                                                free( livedatalist );
-                                            (*livedatalen)=0;
-                                            */
                                         strcpy(lineread, "");
                                         sleep(10);
                                         failedbluetooth++;
@@ -815,7 +779,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
 
                             break;
                         case 24:  // Inverter data $INVERTERDATA
-                            if ((data = ReadStream(conf, flag, &readRecord, s, received, &rr, data, &datalen, last_sent, cc, &terminated, &togo)) != nullptr) {
+                            if ((data = ReadStream(conf, flag, &readRecord, bt_sock, received, &rr, data, &datalen, last_sent, cc, &terminated, &togo)) != nullptr) {
                                 if (flag->debug == 1) printf("data=%02x\n", (data + 3)[0]);
                                 if ((data + 3)[0] == 0x08)
                                     gap = 40;
@@ -848,7 +812,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
                                 //An Error has occurred
                                 break;
                         case 28:  // extract data $DATA
-                            if ((data = ReadStream(conf, flag, &readRecord, s, received, &rr, data, &datalen, last_sent, cc, &terminated, &togo)) != nullptr) {
+                            if ((data = ReadStream(conf, flag, &readRecord, bt_sock, received, &rr, data, &datalen, last_sent, cc, &terminated, &togo)) != nullptr) {
                                 gap = 0;
                                 return_key = -1;
                                 for (size_t j = 0; j < conf->num_return_keys; j++) {
@@ -990,7 +954,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE
  * Run a command on an inverter
  *
  */
-void InverterCommand(const char *command, ConfType *conf, FlagType *flag, UnitType **unit, int *s, FILE *fp, ArchDataList &archdatalist, LiveDataList &livedatalist)
+void InverterCommand(const char *command, ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock, FILE *fp, ArchDataList &archdatalist, LiveDataList &livedatalist)
 {
     if (fseek(fp, 0L, 0) < 0)
         printf("\nError");
@@ -1000,7 +964,7 @@ void InverterCommand(const char *command, ConfType *conf, FlagType *flag, UnitTy
     printf("================\n");
 
     if (auto line_num = GetLine(command, fp); line_num > 0) {
-        if (ProcessCommand(conf, flag, unit, s, fp, &line_num, archdatalist, livedatalist) < 0) {
+        if (ProcessCommand(conf, flag, unit, bt_sock, fp, &line_num, archdatalist, livedatalist) < 0) {
             printf("\nError need to do something");
             getchar();
         }

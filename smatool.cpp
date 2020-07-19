@@ -35,6 +35,7 @@
 #include <string>
 
 #include "almanac.h"
+#include "bt_connection.h"
 #include "repost.h"
 #include "sb_commands.h"
 #include "sma_mysql.h"
@@ -395,7 +396,7 @@ int check_send_error(FlagType *flag, const int *s, int *rr, unsigned char *recei
     return 0;
 }
 
-int empty_read_bluetooth(FlagType *flag, ReadRecordType *readRecord, const int *s, int *rr, unsigned char *received, int *terminated)
+int empty_read_bluetooth(FlagType *flag, ReadRecordType *readRecord, const int bt_sock, int *rr, unsigned char *received, int *terminated)
 {
     ssize_t bytes_read = 0;
     int last_decoded = 0;
@@ -410,17 +411,17 @@ int empty_read_bluetooth(FlagType *flag, ReadRecordType *readRecord, const int *
     memset(buf, 0, 1024);
 
     FD_ZERO(&readfds);
-    FD_SET((*s), &readfds);
+    FD_SET(bt_sock, &readfds);
 
-    if (select((*s) + 1, &readfds, nullptr, nullptr, &tv) < 0) {
+    if (select(bt_sock + 1, &readfds, nullptr, nullptr, &tv) < 0) {
         fmt::print("select error has occurred");
         getchar();
     }
 
     (*terminated) = 0;  // Tag to tell if string has 7e termination
     // first read the header to get the record length
-    if (FD_ISSET((*s), &readfds)) {                          // did we receive anything within 5 seconds
-        bytes_read = recv((*s), header, sizeof(header), 0);  //Get length of string
+    if (FD_ISSET(bt_sock, &readfds)) {                          // did we receive anything within 5 seconds
+        bytes_read = recv(bt_sock, header, sizeof(header), 0);  //Get length of string
         (*rr) = 0;
         for (unsigned int i = 0; i < sizeof(header); i++) {
             received[(*rr)] = header[i];
@@ -436,8 +437,8 @@ int empty_read_bluetooth(FlagType *flag, ReadRecordType *readRecord, const int *
 
     auto len = (uint16_t)header[1];
 
-    if (FD_ISSET((*s), &readfds)) {                             // did we receive anything within 5 seconds
-        bytes_read = recv((*s), buf, len - sizeof(header), 0);  //Read the length specified by header
+    if (FD_ISSET(bt_sock, &readfds)) {                             // did we receive anything within 5 seconds
+        bytes_read = recv(bt_sock, buf, len - sizeof(header), 0);  //Read the length specified by header
     } else {
         memset(received, 0, 1024);
         (*rr) = 0;
@@ -548,7 +549,7 @@ int empty_read_bluetooth(FlagType *flag, ReadRecordType *readRecord, const int *
     return 0;
 }
 
-int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, const int *s, int *rr, unsigned char *received, int cc, unsigned char *last_sent, int *terminated)
+int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, const int bt_sock, int *rr, unsigned char *received, int cc, unsigned char *last_sent, int *terminated)
 {
     int bytes_read = 0;
     unsigned char buf[1024]; /*read buffer*/
@@ -562,9 +563,9 @@ int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, c
     memset(buf, 0, 1024);
 
     FD_ZERO(&readfds);
-    FD_SET((*s), &readfds);
+    FD_SET(bt_sock, &readfds);
 
-    if (select((*s) + 1, &readfds, nullptr, nullptr, &tv) < 0) {
+    if (select(bt_sock + 1, &readfds, nullptr, nullptr, &tv) < 0) {
         fmt::print(stderr, "select error has occurred");
         getchar();
     }
@@ -574,8 +575,8 @@ int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, c
 
     (*terminated) = 0;  // Tag to tell if string has 7e termination
     // first read the header to get the record length
-    if (FD_ISSET((*s), &readfds)) {                          // did we receive anything within 5 seconds
-        bytes_read = recv((*s), header, sizeof(header), 0);  //Get length of string
+    if (FD_ISSET(bt_sock, &readfds)) {                          // did we receive anything within 5 seconds
+        bytes_read = recv(bt_sock, header, sizeof(header), 0);  //Get length of string
         (*rr) = 0;
         for (size_t i = 0; i < sizeof(header); i++) {
             received[(*rr)] = header[i];
@@ -593,8 +594,8 @@ int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, c
 
     auto len = (uint16_t)header[1];
 
-    if (FD_ISSET((*s), &readfds)) {                             // did we receive anything within 5 seconds
-        bytes_read = recv((*s), buf, len - sizeof(header), 0);  //Read the length specified by header
+    if (FD_ISSET(bt_sock, &readfds)) {                             // did we receive anything within 5 seconds
+        bytes_read = recv(bt_sock, buf, len - sizeof(header), 0);  //Read the length specified by header
         fmt::print("length defined by header: {}, actually read: {}\n", len, bytes_read);
     } else {
         if (flag->verbose == 1)
@@ -1091,7 +1092,7 @@ void SetSwitches(ConfType *conf, FlagType *flag)
 }
 
 unsigned char *
-ReadStream(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, int *s, unsigned char *stream, int *streamlen, unsigned char *datalist, int *datalen, unsigned char *last_sent, int cc, int *terminated, int *togo)
+ReadStream(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, int bt_sock, unsigned char *stream, int *streamlen, unsigned char *datalist, int *datalen, unsigned char *last_sent, int cc, int *terminated, int *togo)
 {
     int finished;
     int finished_record;
@@ -1119,7 +1120,7 @@ ReadStream(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, int *s, u
         }
         finished_record = 0;
         if ((*terminated) == 0) {
-            if (read_bluetooth(conf, flag, readRecord, s, streamlen, stream, cc, last_sent, terminated) != 0) {
+            if (read_bluetooth(conf, flag, readRecord, bt_sock, streamlen, stream, cc, last_sent, terminated) != 0) {
                 free(datalist);
                 datalist = nullptr;
             }
@@ -1609,35 +1610,31 @@ int main(int argc, char **argv)
         fmt::print("QUERY RANGE    from {} to {}\n", conf.datefrom, conf.dateto);
 
     if ((flag.daterange == 1) && ((flag.location = 0) || (flag.mysql == 0) || no_dark == 1 || is_light(&conf, &flag))) {
-        fmt::print("Address {}\n", conf.BTAddress);
-        //Connect to Inverter
-        int bt_sock = 0;
-        if ((bt_sock = ConnectSocket(&conf)) < 0)
-            exit(-1);
-
         if (flag.file == 1)
             fp = fopen(conf.File, "r");
         else
             fp = fopen("sma.in", "r");
 
-        InverterCommand("init", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
-        InverterCommand("login", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
-        InverterCommand("typelabel", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
-        InverterCommand("startuptime", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
-        InverterCommand("getacvoltage", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
-        InverterCommand("getenergyproduction", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
-        InverterCommand("getspotdcpower", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
-        InverterCommand("getspotdcvoltage", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
-        InverterCommand("getspotacpower", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
-        InverterCommand("getgridfreq", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
-        InverterCommand("maxACPower", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
-        InverterCommand("maxACPowerTotal", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
-        InverterCommand("ACPowerTotal", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
-        InverterCommand("DeviceStatus", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
-        InverterCommand("getrangedata", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
-        InverterCommand("logoff", &conf, &flag, &unit, &bt_sock, fp, archdatalist, livedatalist);
+        fmt::print("Connecting to {}\n", conf.BTAddress);
+        //Connect to Inverter
+        BTConnection bt_conn{conf.BTAddress};
 
-        close(bt_sock);
+        InverterCommand("init", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
+        InverterCommand("login", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
+        InverterCommand("typelabel", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
+        InverterCommand("startuptime", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
+        InverterCommand("getacvoltage", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
+        InverterCommand("getenergyproduction", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
+        InverterCommand("getspotdcpower", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
+        InverterCommand("getspotdcvoltage", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
+        InverterCommand("getspotacpower", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
+        InverterCommand("getgridfreq", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
+        InverterCommand("maxACPower", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
+        InverterCommand("maxACPowerTotal", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
+        InverterCommand("ACPowerTotal", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
+        InverterCommand("DeviceStatus", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
+        InverterCommand("getrangedata", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
+        InverterCommand("logoff", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
     }
 
     if ((flag.mysql == 1) && (error == 0)) {

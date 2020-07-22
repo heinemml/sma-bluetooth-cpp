@@ -11,7 +11,6 @@ char *ConvertStreamtoString(const unsigned char *, int);
 time_t ConvertStreamtoTime(const unsigned char *stream, int length, time_t *value, int *day, int *month, int *year, int *hour, int *minute, int *second);
 int ConvertStreamtoInt(const unsigned char *stream, int length);
 unsigned char conv(const char *);
-char *debugdate();
 int select_str(char *s);
 int empty_read_bluetooth(FlagType *flag, ReadRecordType *readRecord, int bt_sock, int *rr, unsigned char *received, int *terminated);
 int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, int bt_sock, int *rr, unsigned char *received, int cc, unsigned char *last_sent, int *terminated);

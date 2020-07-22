@@ -1477,24 +1477,6 @@ int ReadCommandConfig(ConfType *conf, FlagType *flag, int argc, char **argv, int
     return (0);
 }
 
-char *debugdate()
-{
-    time_t curtime;
-    struct tm *tm;
-    static char result[20];
-
-    curtime = time(nullptr);  //get time in seconds since epoch (1/1/1970)
-    tm = localtime(&curtime);
-    snprintf(result, sizeof(result), "%4d-%02d-%02d %02d:%02d:%02d",
-             1900 + tm->tm_year,
-             1 + tm->tm_mon,
-             tm->tm_mday,
-             tm->tm_hour,
-             tm->tm_min,
-             tm->tm_sec);
-    return result;
-}
-
 bool post_pvoutput(const std::string &batch_string, size_t batch_count, MySQLConnection &mysql_connection, const std::string &PVOutputKey, const std::string &PVOutputSid, bool debug)
 {
     CURL *curl = curl_easy_init();

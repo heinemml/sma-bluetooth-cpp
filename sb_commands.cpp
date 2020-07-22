@@ -10,10 +10,21 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <iomanip>
+#include <string>
 
 #include "sma_mysql.h"
 #include "sma_struct.h"
 #include "smatool.h"
+
+std::string debugdate()
+{
+    auto now = std::time(nullptr);
+
+    std::string result(20, '\0');
+    std::strftime(result.data(), result.size(), "%Y-%m-%d %H:%M:%S", std::localtime(&now));
+    return result;
+}
 
 /*
  * Update internal running list with live data for later processing
@@ -116,7 +127,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
         }
 
         if (!strcmp(lineread, "R")) {  //See if line is something we need to receive
-            if (flag->debug == 1) printf("[%d] %s Waiting for string\n", (*linenum), debugdate());
+            if (flag->debug == 1) printf("[%d] %s Waiting for string\n", (*linenum), debugdate().c_str());
             cc = 0;
             do {
                 lineread = strtok(nullptr, " ;");
@@ -153,11 +164,11 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
 
             } while (strcmp(lineread, "$END") != 0);
             if (flag->debug == 1) {
-                printf("[%d] %s waiting for: ", (*linenum), debugdate());
+                printf("[%d] %s waiting for: ", (*linenum), debugdate().c_str());
                 for (int i = 0; i < cc; i++) printf("%02x ", fl[i]);
                 printf("\n\n");
             }
-            if (flag->debug == 1) printf("[%d] %s Waiting for data on rfcomm\n", (*linenum), debugdate());
+            if (flag->debug == 1) printf("[%d] %s Waiting for data on rfcomm\n", (*linenum), debugdate().c_str());
             found = 0;
             do {
                 if (already_read == 0)
@@ -174,19 +185,19 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                     already_read = 0;
 
                     if (flag->debug == 1) {
-                        printf("[%d] %s looking for: ", (*linenum), debugdate());
+                        printf("[%d] %s looking for: ", (*linenum), debugdate().c_str());
                         for (int i = 0; i < cc; i++) printf("%02x ", fl[i]);
                         printf("\n");
-                        printf("[%d] %s received:    ", (*linenum), debugdate());
+                        printf("[%d] %s received:    ", (*linenum), debugdate().c_str());
                         for (int i = 0; i < rr; i++) printf("%02x ", received[i]);
                         printf("\n\n");
                     }
 
                     if (memcmp(fl + 4, received + 4, cc - 4) == 0) {
                         found = 1;
-                        if (flag->debug == 1) printf("[%d] %s Found string we are waiting for\n", (*linenum), debugdate());
+                        if (flag->debug == 1) printf("[%d] %s Found string we are waiting for\n", (*linenum), debugdate().c_str());
                     } else {
-                        if (flag->debug == 1) printf("[%d] %s Did not find string\n", (*linenum), debugdate());
+                        if (flag->debug == 1) printf("[%d] %s Did not find string\n", (*linenum), debugdate().c_str());
                     }
                 }
             } while (found == 0);
@@ -199,7 +210,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
             //Empty the receive data ready for new command
             while (((*linenum) > 22) && (empty_read_bluetooth(flag, &readRecord, bt_sock, &rr, received, &terminated) >= 0))
                 ;
-            if (flag->debug == 1) printf("[%d] %s Sending\n", (*linenum), debugdate());
+            if (flag->debug == 1) printf("[%d] %s Sending\n", (*linenum), debugdate().c_str());
             cc = 0;
             do {
                 lineread = strtok(nullptr, " ;");
@@ -588,14 +599,14 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
 
         if (!strcmp(lineread, "E")) {  //See if line is something we need to extract
             if (readRecord.Status[0] == 0xe0) {
-                if (flag->debug == 1) printf("\n%s There is no data to extract, waiting", debugdate());
+                if (flag->debug == 1) printf("\n%s There is no data to extract, waiting", debugdate().c_str());
                 // Read the rest of the records
                 while (read_bluetooth(conf, flag, &readRecord, bt_sock, &rr, received, cc, last_sent, &terminated) == 0) {
                     if (flag->debug == 1) printf(".");
                 }
                 if (flag->debug == 1) printf("\n");
             } else {
-                if (flag->debug == 1) printf("[%d] %s Extracting\n", (*linenum), debugdate());
+                if (flag->debug == 1) printf("[%d] %s Extracting\n", (*linenum), debugdate().c_str());
                 cc = 0;
                 do {
                     lineread = strtok(nullptr, " ;");

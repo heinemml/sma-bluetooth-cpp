@@ -8,7 +8,7 @@ char *return_xml_data(int index);
 long ConvertStreamtoLong(const unsigned char *, int, unsigned long *);
 float ConvertStreamtoFloat(const unsigned char *, int, float *);
 char *ConvertStreamtoString(const unsigned char *, int);
-time_t ConvertStreamtoTime(const unsigned char *stream, int length, time_t *value, int *day, int *month, int *year, int *hour, int *minute, int *second);
+time_t ConvertStreamtoTime(const unsigned char *stream, std::size_t length);
 int ConvertStreamtoInt(const unsigned char *stream, int length);
 unsigned char conv(const char *);
 int select_str(char *s);

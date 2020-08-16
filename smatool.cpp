@@ -1034,32 +1034,21 @@ int ConvertStreamtoInt(const unsigned char *stream, int length)
     return value;
 }
 
-//Convert a received string to a value
-time_t ConvertStreamtoTime(const unsigned char *stream, int length, time_t *value, int *day, int *month, int *year, int *hour, int *minute, int *second)
+time_t ConvertStreamtoTime(const unsigned char *stream, std::size_t length)
 {
-    struct tm *loctime;
-
-    (*value) = 0;
+    time_t value = 0;
     bool nullvalue = true;
 
-    for (int i = 0; i < length; i++) {
+    for (std::size_t i = 0; i < length; i++) {
         if (stream[i] != 0xff)  //check if all ffs which is a null value
             nullvalue = false;
-        (*value) = (*value) + stream[i] * pow(256, i);
+        value = value + stream[i] * pow(256, i);
     }
+
     if (nullvalue)
-        (*value) = 0;  //Asigning null to 0 at this stage unless it breaks something
-    else {
-        //Get human readable dates
-        loctime = localtime(value);
-        (*day) = loctime->tm_mday;
-        (*month) = loctime->tm_mon + 1;
-        (*year) = loctime->tm_year + 1900;
-        (*hour) = loctime->tm_hour;
-        (*minute) = loctime->tm_min;
-        (*second) = loctime->tm_sec;
-    }
-    return (*value);
+        value = 0;  //Asigning null to 0 at this stage unless it breaks something
+
+    return value;
 }
 
 // Set switches to save lots of strcmps
@@ -1310,8 +1299,9 @@ char *return_xml_data(int index)
             }
         }
         xmlXPathFreeObject(result);
-    } else
+    } else {
         fmt::print(stderr, "\nfailed to getnodeset with xpath '{}'\n", xpath);
+    }
     xmlFreeDoc(doc);
     xmlCleanupParser();
 

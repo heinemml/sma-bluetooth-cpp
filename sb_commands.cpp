@@ -2,6 +2,12 @@
 
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/rfcomm.h>
+#include <fmt/format.h>
+#if __has_include(<fmt/chrono.h>)
+#include <fmt/chrono.h>
+#else
+#include <fmt/time.h>
+#endif
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -10,7 +16,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
-#include <iomanip>
 #include <string>
 
 #include "sma_mysql.h"
@@ -20,16 +25,13 @@
 std::string debugdate()
 {
     auto now = std::time(nullptr);
-
-    std::string result(20, '\0');
-    std::strftime(result.data(), result.size(), "%Y-%m-%d %H:%M:%S", std::localtime(&now));
-    return result;
+    return fmt::format("{:%Y-%m-%d %H:%M:%S}", *std::localtime(&now));
 }
 
 /*
  * Update internal running list with live data for later processing
  */
-int UpdateLiveList(FlagType *flag, UnitType *unit, const char *format, time_t idate, const char *description, float fvalue, int ivalue, char *svalue, char *units, int persistent, LiveDataList &livedatalist)
+int UpdateLiveList(FlagType *flag, UnitType *unit, const char *format, time_t idate, const char *description, float fvalue, int ivalue, const char *svalue, const char *units, int persistent, LiveDataList &livedatalist)
 {
     if (strlen(unit->Inverter) > 0) {
         auto &element = livedatalist.emplace_back();
@@ -66,12 +68,9 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
     int finished;
     time_t fromtime;
     time_t totime;
-    time_t idate;
-    time_t prev_idate;
     unsigned char tzhex[2] = {0};
     unsigned char timeset[4] = {0x30, 0xfe, 0x7e, 0x00};
     tm tm{};
-    int day = 0, month = 0, year = 0, hour = 0, minute = 0, second = 0;
     unsigned char fl[1024] = {0};
     unsigned char received[1024];
     unsigned char datarecord[1024];
@@ -89,13 +88,12 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
     float gtotal = 0.0;
     float ptotal = 0.0;
     float strength = 0.0;
-    int found = 0, already_read = 0, terminated = 0;
+    int already_read = 0, terminated = 0;
     int gap = 0, return_key = 0, datalength = 0;
     int pass_i = 0, send_count = 0;
     int persistent = 0;
     int index = 0;
     unsigned long long inverter_serial = 0;
-    char valuebuf[30];
 
     //convert address
     strncpy(BTAddressBuf, conf->BTAddress, 20);
@@ -109,7 +107,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
     auto reporttime = time(nullptr);  //get time in seconds since epoch (1/1/1970)
 
     char *line = nullptr;
-    size_t len = 0;
+    std::size_t len = 0;
     while ((read = getline(&line, &len, fp)) != -1) {  //read line from sma.in
 
         (*linenum)++;
@@ -169,13 +167,12 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                 printf("\n\n");
             }
             if (flag->debug == 1) printf("[%d] %s Waiting for data on rfcomm\n", (*linenum), debugdate().c_str());
-            found = 0;
-            do {
+            bool data_found{false};
+            while (!data_found) {
                 if (already_read == 0)
                     rr = 0;
                 if ((already_read == 0) && (read_bluetooth(conf, flag, &readRecord, bt_sock, &rr, received, cc, last_sent, &terminated) != 0)) {
                     already_read = 0;
-                    found = 0;
                     strcpy(lineread, "");
                     sleep(10);
                     failedbluetooth++;
@@ -194,15 +191,16 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                     }
 
                     if (memcmp(fl + 4, received + 4, cc - 4) == 0) {
-                        found = 1;
+                        data_found = true;
                         if (flag->debug == 1) printf("[%d] %s Found string we are waiting for\n", (*linenum), debugdate().c_str());
                     } else {
                         if (flag->debug == 1) printf("[%d] %s Did not find string\n", (*linenum), debugdate().c_str());
                     }
                 }
-            } while (found == 0);
+            }
             if (flag->debug == 2) {
-                for (int i = 0; i < cc; i++) printf("%02x ", fl[i]);
+                for (int i = 0; i < cc; i++)
+                    printf("%02x ", fl[i]);
                 printf("\n\n");
             }
         }
@@ -220,21 +218,21 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                         break;
 
                     case 1:  // $ADDR
-                        for (size_t i = 0; i < 6; i++) {
+                        for (std::size_t i = 0; i < 6; i++) {
                             fl[cc] = dest_address[i];
                             cc++;
                         }
                         break;
 
                     case 3:  // $SERIAL
-                        for (size_t i = 0; i < 4; i++) {
+                        for (std::size_t i = 0; i < 4; i++) {
                             fl[cc] = unit[0]->Serial[i];
                             cc++;
                         }
                         break;
 
                     case 7:  // $ADD2
-                        for (size_t i = 0; i < 6; i++) {
+                        for (std::size_t i = 0; i < 6; i++) {
                             fl[cc] = conf->MyBTAddress[i];
                             cc++;
                         }
@@ -252,10 +250,10 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                         }
                         break;
 
-                    case 11:                                     // $TMPLUS
-                                                                 // get report time and convert
-                        sprintf(tt, "%x", (int)reporttime + 1);  //convert to a hex in a string
-                        for (size_t i = 7; i > 0; i = i - 2) {   //change order and convert to integer
+                    case 11:                                         // $TMPLUS
+                                                                     // get report time and convert
+                        sprintf(tt, "%x", (int)reporttime + 1);      //convert to a hex in a string
+                        for (std::size_t i = 7; i > 0; i = i - 2) {  //change order and convert to integer
                             ti[1] = tt[i];
                             ti[0] = tt[i - 1];
                             ti[2] = '\0';
@@ -266,8 +264,8 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
 
                     case 10:  // $TMMINUS
                         // get report time and convert
-                        sprintf(tt, "%x", (int)reporttime - 1);  //convert to a hex in a string
-                        for (size_t i = 7; i > 0; i = i - 2) {   //change order and convert to integer
+                        sprintf(tt, "%x", (int)reporttime - 1);      //convert to a hex in a string
+                        for (std::size_t i = 7; i > 0; i = i - 2) {  //change order and convert to integer
                             ti[1] = tt[i];
                             ti[0] = tt[i - 1];
                             ti[2] = '\0';
@@ -283,7 +281,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                         break;
 
                     case 12:  // $TIMESTRING
-                        for (size_t i = 0; i < 25; i++) {
+                        for (std::size_t i = 0; i < 25; i++) {
                             fl[cc] = timestr[i];
                             cc++;
                         }
@@ -418,8 +416,8 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
 
                     case 19:  // $PASSWORD
                     {
-                        size_t j = 0;
-                        for (size_t i = 0; i < 12; i++) {
+                        std::size_t j = 0;
+                        for (std::size_t i = 0; i < 12; i++) {
                             if (conf->Password[j] == '\0')
                                 fl[cc] = 0x88;
                             else {
@@ -432,7 +430,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                         break;
                     }
                     case 21:  // $SUSyID
-                        for (size_t i = 0; i < 2; i++) {
+                        for (std::size_t i = 0; i < 2; i++) {
                             fl[cc] = unit[0]->SUSyID[i];
                             cc++;
                         }
@@ -613,11 +611,13 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                     //printf( "\nselect=%d", select_str(lineread));
                     switch (select_str(lineread)) {
                         case 9:  // extract Time from Inverter
-                            idate = ConvertStreamtoTime(received + 66, 4, &idate, &day, &month, &year, &hour, &minute, &second);
-                            printf("Date power = %d/%d/%4d %02d:%02d:%02d\n", day, month, year, hour, minute, second);
+                        {
+                            auto timestamp = ConvertStreamtoTime(received + 66, 4);
+                            fmt::print("Date power = {:%Y-%m-%d %H:%M:%S}\n", *std::localtime(&timestamp));
                             //currentpower = (received[72] * 256) + received[71];
                             //printf("Current power = %i Watt\n",currentpower);
                             break;
+                        }
                         case 5:  // extract current power $POW
                             if ((data = ReadStream(conf, flag, &readRecord, bt_sock, received, &rr, data, &datalen, last_sent, cc, &terminated, &togo)) != nullptr) {
                                 //printf( "\ndata=%02x:%02x:%02x:%02x:%02x:%02x\n", data[0], (data+1)[0], (data+2)[0], (data+3)[0], (data+4)[0], (data+5)[0] );
@@ -630,27 +630,26 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                 if ((data + 3)[0] == 0x00)
                                     gap = 28;
                                 for (int i = 0; i < datalen; i += gap) {
-                                    idate = ConvertStreamtoTime(data + i + 4, 4, &idate, &day, &month, &year, &hour, &minute, &second);
+                                    auto timestamp = ConvertStreamtoTime(data + i + 4, 4);
                                     ConvertStreamtoFloat(data + i + 8, 3, &currentpower_total);
                                     return_key = -1;
-                                    for (size_t j = 0; j < conf->num_return_keys; j++) {
+                                    for (std::size_t j = 0; j < conf->num_return_keys; j++) {
                                         if (((data + i + 1)[0] == conf->returnkeylist[j].key1) && ((data + i + 2)[0] == conf->returnkeylist[j].key2)) {
                                             return_key = j;
                                             break;
                                         }
                                     }
                                     if (return_key >= 0) {
-                                        printf("%d-%02d-%02d %02d:%02d:%02d %-20s = %.0f %-20s\n", year, month, day, hour, minute, second, conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, conf->returnkeylist[return_key].units);
+                                        fmt::print("{:%Y-%m-%d %H:%M:%S} {:<20} = {:.0f} {:<20}\n", *std::localtime(&timestamp), conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, conf->returnkeylist[return_key].units);
                                         inverter_serial = (unit[0]->Serial[3] << 24) + (unit[0]->Serial[2] << 16) + (unit[0]->Serial[1] << 8) + unit[0]->Serial[0];
-                                    } else if ((data + 0)[0] > 0)
-
-                                        printf("%d-%02d-%02d %02d:%02d:%02d NO DATA for %02x %02x = %.0f NO UNITS\n", year, month, day, hour, minute, second, (data + i + 1)[0], (data + i + 1)[1], currentpower_total);
+                                    } else if ((data + 0)[0] > 0) {
+                                        fmt::print("{:%Y-%m-%d %H:%M:%S} NO DATA for {:02x} {:02x} = {:.0f} NO UNITS\n", *std::localtime(&timestamp), (data + i + 1)[0], (data + i + 1)[1], currentpower_total);
+                                    }
                                 }
                                 free(data);
-                                break;
-                            } else
-                                //An Error has occurred
-                                break;
+                            }
+                            //An Error has occurred
+                            break;
 
                         case 6:  // extract total energy collected today
 
@@ -663,7 +662,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                             break;
 
                         case 7:  // extract 2nd address
-                            for (size_t i = 0; i < 6; i++) {
+                            for (std::size_t i = 0; i < 6; i++) {
                                 conf->MyBTAddress[i] = received[26 + i];
                             }
                             if (flag->debug == 1)
@@ -677,11 +676,11 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                 memcpy(timestr, received + 63, 24);
                                 if (flag->debug == 1) printf("extracting timestring\n");
                                 memcpy(timeset, received + 79, 4);
-                                idate = ConvertStreamtoTime(received + 63, 4, &idate, &day, &month, &year, &hour, &minute, &second);
+                                auto timestamp = ConvertStreamtoTime(received + 63, 4);
                                 /* Allow delay for inverter to be slow */
-                                if (reporttime > idate) {
+                                if (reporttime > timestamp) {
                                     if (flag->debug == 1)
-                                        printf("delay=%d\n", (int)(reporttime - idate));
+                                        printf("delay=%d\n", (int)(reporttime - timestamp));
                                     //sleep( reporttime - idate );
                                     sleep(5);  //was sleeping for > 1min excessive
                                 }
@@ -693,7 +692,6 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                     if (flag->debug == 1) printf("bad extracting timestring\n");
                                 }
                                 already_read = 0;
-                                found = 0;
                                 strcpy(lineread, "");
                                 failedbluetooth++;
                                 if (failedbluetooth > 60)
@@ -714,37 +712,40 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                 break;
 
                         case 18:  // $ARCHIVEDATA1
+                        {
                             finished = 0;
                             ptotal = 0;
-                            idate = 0;
+                            time_t timestamp = 0;
+                            time_t timestamp_prev = 0;
                             printf("\n");
                             while (finished != 1) {
                                 if ((data = ReadStream(conf, flag, &readRecord, bt_sock, received, &rr, data, &datalen, last_sent, cc, &terminated, &togo)) != nullptr) {
-                                    size_t j = 0;
+                                    std::size_t j = 0;
                                     for (int i = 0; i < datalen; i++) {
                                         datarecord[j] = data[i];
                                         j++;
                                         if (j > 11) {
-                                            if (idate > 0)
-                                                prev_idate = idate;
+                                            if (timestamp > 0)
+                                                timestamp_prev = timestamp;
                                             else
-                                                prev_idate = 0;
-                                            idate = ConvertStreamtoTime(datarecord, 4, &idate, &day, &month, &year, &hour, &minute, &second);
-                                            if (prev_idate == 0)
-                                                prev_idate = idate - 300;
+                                                timestamp_prev = 0;
+                                            timestamp = ConvertStreamtoTime(datarecord, 4);
+                                            if (timestamp_prev == 0)
+                                                timestamp_prev = timestamp - 300;
 
                                             ConvertStreamtoFloat(datarecord + 4, 8, &gtotal);
                                             if (archdatalist.empty())
                                                 ptotal = gtotal;
-                                            printf("\n%d/%d/%4d %02d:%02d:%02d  total=%.3f Kwh current=%.0f Watts togo=%d i=%d\n", day, month, year, hour, minute, second, gtotal / 1000, (gtotal - ptotal) * 12, togo, i);
-                                            if (idate != prev_idate + 300) {
-                                                printf("Date Error! prev=%d current=%d\n", (int)prev_idate, (int)idate);
+
+                                            fmt::print("\n{:%Y-%m-%d %H:%M:%S}  total={:.3f} Kwh current={:.0f} Watts togo={} i={}\n", *std::localtime(&timestamp), gtotal / 1000, (gtotal - ptotal) * 12, togo, i);
+                                            if (timestamp != timestamp_prev + 300) {
+                                                printf("Date Error! prev=%d current=%d\n", (int)timestamp_prev, (int)timestamp);
                                                 error = 1;
                                                 // break;
                                             }
 
                                             auto &element = archdatalist.emplace_back();
-                                            element.date = idate;
+                                            element.date = timestamp;
                                             strcpy(element.inverter, unit[0]->Inverter);
                                             inverter_serial = (unit[0]->Serial[0] << 24) + (unit[0]->Serial[1] << 16) + (unit[0]->Serial[2] << 8) + unit[0]->Serial[3];
                                             element.serial = inverter_serial;
@@ -757,7 +758,6 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                     if (togo == 0)
                                         finished = 1;
                                     else if (read_bluetooth(conf, flag, &readRecord, bt_sock, &rr, received, cc, last_sent, &terminated) != 0) {
-                                        found = 0;
                                         strcpy(lineread, "");
                                         sleep(10);
                                         failedbluetooth++;
@@ -772,6 +772,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                             printf("\n");
 
                             break;
+                        }
                         case 20:  // SIGNAL signal strength
 
                             strength = (received[22] * 100.0) / 0xff;
@@ -790,6 +791,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
 
                             break;
                         case 24:  // Inverter data $INVERTERDATA
+
                             if ((data = ReadStream(conf, flag, &readRecord, bt_sock, received, &rr, data, &datalen, last_sent, cc, &terminated, &togo)) != nullptr) {
                                 if (flag->debug == 1) printf("data=%02x\n", (data + 3)[0]);
                                 if ((data + 3)[0] == 0x08)
@@ -801,10 +803,10 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                 if ((data + 3)[0] == 0x00)
                                     gap = 28;
                                 for (int i = 0; i < datalen; i += gap) {
-                                    idate = ConvertStreamtoTime(data + i + 4, 4, &idate, &day, &month, &year, &hour, &minute, &second);
+                                    auto timestamp = ConvertStreamtoTime(data + i + 4, 4);
                                     ConvertStreamtoFloat(data + i + 8, 3, &currentpower_total);
                                     return_key = -1;
-                                    for (size_t j = 0; j < conf->num_return_keys; j++) {
+                                    for (std::size_t j = 0; j < conf->num_return_keys; j++) {
                                         if (((data + i + 1)[0] == conf->returnkeylist[j].key1) && ((data + i + 2)[0] == conf->returnkeylist[j].key2)) {
                                             return_key = j;
                                             break;
@@ -812,21 +814,20 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                     }
                                     if (return_key >= 0) {
                                         if (i == 0)
-                                            printf("%d-%02d-%02d  %02d:%02d:%02d %s\n", year, month, day, hour, minute, second, (data + i + 8));
-                                        printf("%d-%02d-%02d %02d:%02d:%02d %-20s = %.0f %-20s\n", year, month, day, hour, minute, second, conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, conf->returnkeylist[return_key].units);
+                                            fmt::print("{:%Y-%m-%d %H:%M:%S} {:s}\n", *std::localtime(&timestamp), (data + i + 8));
+
+                                        fmt::print("{:%Y-%m-%d %H:%M:%S} {:>20s} = {:.0f} {:>20s}\n", *std::localtime(&timestamp), conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, conf->returnkeylist[return_key].units);
                                     } else if (data[0] > 0)
-                                        printf("%d-%02d-%02d %02d:%02d:%02d NO DATA for %02x %02x = %.0f NO UNITS \n", year, month, day, hour, minute, second, (data + i + 1)[0], (data + i + 1)[0], currentpower_total);
+                                        fmt::print("{:%Y-%m-%d %H:%M:%S} NO DATA for {:02x} {:02x} = {:.0f} NO UNITS \n", *std::localtime(&timestamp), (data + i + 1)[0], (data + i + 1)[0], currentpower_total);
                                 }
                                 free(data);
-                                break;
-                            } else
-                                //An Error has occurred
-                                break;
+                            }
+                            break;
                         case 28:  // extract data $DATA
                             if ((data = ReadStream(conf, flag, &readRecord, bt_sock, received, &rr, data, &datalen, last_sent, cc, &terminated, &togo)) != nullptr) {
                                 gap = 0;
                                 return_key = -1;
-                                for (size_t j = 0; j < conf->num_return_keys; j++) {
+                                for (std::size_t j = 0; j < conf->num_return_keys; j++) {
                                     if (((data + 1)[0] == conf->returnkeylist[j].key1) && ((data + 2)[0] == conf->returnkeylist[j].key2)) {
                                         return_key = j;
                                         break;
@@ -839,9 +840,9 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                     printf("\nFailed to find key %02x:%02x", (data + 1)[0], (data + 2)[0]);
 
                                 for (int i = 0; i < datalen; i += gap) {
-                                    idate = ConvertStreamtoTime(data + i + 4, 4, &idate, &day, &month, &year, &hour, &minute, &second);
+                                    auto timestamp = ConvertStreamtoTime(data + i + 4, 4);
                                     return_key = -1;
-                                    for (size_t j = 0; j < conf->num_return_keys; j++) {
+                                    for (std::size_t j = 0; j < conf->num_return_keys; j++) {
                                         if (((data + i + 1)[0] == conf->returnkeylist[j].key1) && ((data + i + 2)[0] == conf->returnkeylist[j].key2)) {
                                             return_key = j;
                                             break;
@@ -855,8 +856,8 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                                     persistent = 1;
                                                 else
                                                     persistent = conf->returnkeylist[return_key].persistent;
-                                                printf("%d-%02d-%02d %02d:%02d:%02d %-30s = %.0f %-20s\n", year, month, day, hour, minute, second, conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, conf->returnkeylist[return_key].units);
-                                                UpdateLiveList(flag, unit[0], "%.0f", idate, conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, -1, (char *)nullptr, conf->returnkeylist[return_key].units, persistent, livedatalist);
+                                                fmt::print("{:%Y-%m-%d %H:%M:%S} {:>20s} = {:.0f} {:>20s}\n", *std::localtime(&timestamp), conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, conf->returnkeylist[return_key].units);
+                                                UpdateLiveList(flag, unit[0], "%.0f", timestamp, conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, -1, (char *)nullptr, conf->returnkeylist[return_key].units, persistent, livedatalist);
                                                 break;
                                             case 1:
                                                 ConvertStreamtoFloat(data + i + 8, datalength, &currentpower_total);
@@ -864,8 +865,8 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                                     persistent = 1;
                                                 else
                                                     persistent = conf->returnkeylist[return_key].persistent;
-                                                printf("%d-%02d-%02d %02d:%02d:%02d %-30s = %.1f %-20s\n", year, month, day, hour, minute, second, conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, conf->returnkeylist[return_key].units);
-                                                UpdateLiveList(flag, unit[0], "%.1f", idate, conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, -1, (char *)nullptr, conf->returnkeylist[return_key].units, persistent, livedatalist);
+                                                fmt::print("{:%Y-%m-%d %H:%M:%S} {:>30s} = {:.1f} {:>20s}\n", *std::localtime(&timestamp), conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, conf->returnkeylist[return_key].units);
+                                                UpdateLiveList(flag, unit[0], "%.1f", timestamp, conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, -1, (char *)nullptr, conf->returnkeylist[return_key].units, persistent, livedatalist);
                                                 break;
                                             case 2:
                                                 ConvertStreamtoFloat(data + i + 8, datalength, &currentpower_total);
@@ -873,8 +874,8 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                                     persistent = 1;
                                                 else
                                                     persistent = conf->returnkeylist[return_key].persistent;
-                                                printf("%d-%02d-%02d %02d:%02d:%02d %-30s = %.2f %-20s\n", year, month, day, hour, minute, second, conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, conf->returnkeylist[return_key].units);
-                                                UpdateLiveList(flag, unit[0], "%.2f", idate, conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, -1, (char *)nullptr, conf->returnkeylist[return_key].units, persistent, livedatalist);
+                                                fmt::print("{:%Y-%m-%d %H:%M:%S} {:>30s} = {:.2f} {:>20s}\n", *std::localtime(&timestamp), conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, conf->returnkeylist[return_key].units);
+                                                UpdateLiveList(flag, unit[0], "%.2f", timestamp, conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, -1, (char *)nullptr, conf->returnkeylist[return_key].units, persistent, livedatalist);
                                                 break;
                                             case 3:
                                                 ConvertStreamtoFloat(data + i + 8, datalength, &currentpower_total);
@@ -882,8 +883,8 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                                     persistent = 1;
                                                 else
                                                     persistent = conf->returnkeylist[return_key].persistent;
-                                                printf("%d-%02d-%02d %02d:%02d:%02d %-30s = %.3f %-20s\n", year, month, day, hour, minute, second, conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, conf->returnkeylist[return_key].units);
-                                                UpdateLiveList(flag, unit[0], "%.3f", idate, conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, -1, (char *)nullptr, conf->returnkeylist[return_key].units, persistent, livedatalist);
+                                                fmt::print("{:%Y-%m-%d %H:%M:%S} {:>30s} = {:.3f} {:>20s}\n", *std::localtime(&timestamp), conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, conf->returnkeylist[return_key].units);
+                                                UpdateLiveList(flag, unit[0], "%.3f", timestamp, conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, -1, (char *)nullptr, conf->returnkeylist[return_key].units, persistent, livedatalist);
                                                 break;
                                             case 4:
                                                 ConvertStreamtoFloat(data + i + 8, datalength, &currentpower_total);
@@ -891,33 +892,32 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                                     persistent = 1;
                                                 else
                                                     persistent = conf->returnkeylist[return_key].persistent;
-                                                printf("%d-%02d-%02d %02d:%02d:%02d %-30s = %.4f %-20s\n", year, month, day, hour, minute, second, conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, conf->returnkeylist[return_key].units);
-                                                UpdateLiveList(flag, unit[0], "%.4f", idate, conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, -1, (char *)nullptr, conf->returnkeylist[return_key].units, persistent, livedatalist);
+                                                fmt::print("{:%Y-%m-%d %H:%M:%S} {:>30s} = {:.4f} {:>20s}\n", *std::localtime(&timestamp), conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, conf->returnkeylist[return_key].units);
+                                                UpdateLiveList(flag, unit[0], "%.4f", timestamp, conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, -1, (char *)nullptr, conf->returnkeylist[return_key].units, persistent, livedatalist);
                                                 break;
-                                            case 97:
-
-                                                idate = ConvertStreamtoTime(data + i + 4, 4, &idate, &day, &month, &year, &hour, &minute, &second);
-                                                printf("                    %-30s = %d-%02d-%02d %02d:%02d:%02d\n", conf->returnkeylist[return_key].description, year, month, day, hour, minute, second);
-                                                sprintf(valuebuf, "%d-%02d-%02d %02d:%02d:%02d", year, month, day, hour, minute, second);
-                                                UpdateLiveList(flag, unit[0], "%s", idate, conf->returnkeylist[return_key].description, -1.0, -1, valuebuf, conf->returnkeylist[return_key].units, conf->returnkeylist[return_key].persistent, livedatalist);
+                                            case 97: {
+                                                fmt::print("                    {:>30s} = {:%Y-%m-%d %H:%M:%S}\n", conf->returnkeylist[return_key].description, *std::localtime(&timestamp));
+                                                auto vbuf = fmt::format("{:%Y-%m-%d %H:%M:%S}", *std::localtime(&timestamp));
+                                                UpdateLiveList(flag, unit[0], "%s", timestamp, conf->returnkeylist[return_key].description, -1.0, -1, vbuf.c_str(), conf->returnkeylist[return_key].units, conf->returnkeylist[return_key].persistent, livedatalist);
 
                                                 break;
+                                            }
                                             case 98:
-                                                idate = ConvertStreamtoTime(data + i + 4, 4, &idate, &day, &month, &year, &hour, &minute, &second);
+
                                                 index = ConvertStreamtoInt(data + i + 8, 2);
                                                 datastring = return_xml_data(index);
-                                                printf("%d-%02d-%02d %02d:%02d:%02d %-30s = %s %-20s\n", year, month, day, hour, minute, second, conf->returnkeylist[return_key].description, datastring, conf->returnkeylist[return_key].units);
-                                                UpdateLiveList(flag, unit[0], "%s", idate, conf->returnkeylist[return_key].description, -1.0, -1, datastring, conf->returnkeylist[return_key].units, conf->returnkeylist[return_key].persistent, livedatalist);
+                                                fmt::print("{:%Y-%m-%d %H:%M:%S} {:>30s} = {:s} {:>20s}\n", *std::localtime(&timestamp), conf->returnkeylist[return_key].description, datastring, conf->returnkeylist[return_key].units);
+                                                UpdateLiveList(flag, unit[0], "%s", timestamp, conf->returnkeylist[return_key].description, -1.0, -1, datastring, conf->returnkeylist[return_key].units, conf->returnkeylist[return_key].persistent, livedatalist);
                                                 if ((data + i + 1)[0] == 0x20 && (data + i + 2)[0] == 0x82) {
                                                     strcpy(unit[0]->Inverter, datastring);
                                                 }
                                                 free(datastring);
                                                 break;
+
                                             case 99:
-                                                idate = ConvertStreamtoTime(data + i + 4, 4, &idate, &day, &month, &year, &hour, &minute, &second);
                                                 datastring = ConvertStreamtoString(data + i + 8, datalength);
-                                                printf("%d-%02d-%02d %02d:%02d:%02d %-30s = %s %-20s\n", year, month, day, hour, minute, second, conf->returnkeylist[return_key].description, datastring, conf->returnkeylist[return_key].units);
-                                                UpdateLiveList(flag, unit[0], "%s", idate, conf->returnkeylist[return_key].description, -1.0, -1, datastring, conf->returnkeylist[return_key].units, conf->returnkeylist[return_key].persistent, livedatalist);
+                                                fmt::print("{:%Y-%m-%d %H:%M:%S} {:>30s} = {:s} {:>20s}\n", *std::localtime(&timestamp), conf->returnkeylist[return_key].description, datastring, conf->returnkeylist[return_key].units);
+                                                UpdateLiveList(flag, unit[0], "%s", timestamp, conf->returnkeylist[return_key].description, -1.0, -1, datastring, conf->returnkeylist[return_key].units, conf->returnkeylist[return_key].persistent, livedatalist);
 
                                                 free(datastring);
                                                 break;
@@ -925,7 +925,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                         //       live_mysql( &conf, year, month, day, hour, minute, second, conf.Inverter, inverter_serial, returnkeylist[return_key].description, currentpower_total/returnkeylist[return_key].divisor, returnkeylist[return_key].units, debug );
                                     } else {
                                         if (data[0] > 0)
-                                            printf("%d-%02d-%02d %02d:%02d:%02d NO DATA for %02x %02x = %.0f NO UNITS\n", year, month, day, hour, minute, second, (data + i + 1)[0], (data + i + 1)[1], currentpower_total);
+                                            fmt::print("{:%Y-%m-%d %H:%M:%S} NO DATA for {:02x} {:02x} = {:.0f} NO UNITS \n", *std::localtime(&timestamp), (data + i + 1)[0], (data + i + 1)[0], currentpower_total);
                                         break;
                                     }
                                 }
@@ -936,8 +936,8 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                 break;
                             }
                         case 31:  // LOGIN Data
-                            idate = ConvertStreamtoTime(received + 59, 4, &idate, &day, &month, &year, &hour, &minute, &second);
-                            if (flag->debug == 1) printf("Date power = %d/%d/%4d %02d:%02d:%02d\n", day, month, year, hour, minute, second);
+                            auto date = ConvertStreamtoTime(received + 59, 4);
+                            if (flag->debug == 1) fmt::print("Date power = {:%Y-%m-%d %H:%M:%S}\n", *std::localtime(&date));
                             if (flag->debug == 1) printf("extracting SUSyID=%02x:%02x\n", received[33], received[34]);
                             unit[0]->Serial[3] = received[35];
                             unit[0]->Serial[2] = received[36];
@@ -991,7 +991,7 @@ void InverterCommand(const char *command, ConfType *conf, FlagType *flag, UnitTy
 int GetLine(const char *command, FILE *fp)
 {
     char *line = nullptr;
-    size_t len = 0;
+    std::size_t len = 0;
     int line_num = 0;
     int found_line = 0;
 

@@ -23,7 +23,7 @@
 
 #define DATELENGTH 20
 
-typedef struct {
+struct ReturnType {
     unsigned int key1;
     unsigned int key2;
     char description[40];
@@ -33,7 +33,7 @@ typedef struct {
     int datalength;
     int recordgap;
     int persistent;
-} ReturnType;
+};
 
 struct ArchDataType {
     time_t date;
@@ -57,7 +57,7 @@ struct LiveDataType {
 
 using LiveDataList = std::vector<LiveDataType>;
 
-typedef struct {
+struct ConfType {
     char BTAddress[20];           /*--address  	-a 	*/
     int bt_timeout;               /*--timeout  	-t 	*/
     char Password[20];            /*--password 	-p 	*/
@@ -82,9 +82,9 @@ typedef struct {
     unsigned int num_return_keys; /* number of items in list */
     char datefrom[DATELENGTH];    /* is system using a daterange */
     char dateto[DATELENGTH];      /* is system using a daterange */
-} ConfType;
+};
 
-typedef struct {
+struct FlagType {
     unsigned int debug;     /* debug flag */
     unsigned int verbose;   /* verbose flag */
     unsigned int daterange; /* is system using a daterange */
@@ -94,9 +94,9 @@ typedef struct {
     unsigned int file;      /* is system using a daterange */
     unsigned int post;      /* is system using a daterange */
     unsigned int repost;    /* is system using a daterange */
-} FlagType;
+};
 
-typedef struct {
+struct UnitType {
     char Inverter[20]; /*--inverter 	-i 	*/
     char Name[20];
     char SerialStr[20];
@@ -104,9 +104,9 @@ typedef struct {
     unsigned char SUSyID[2];  /*SUSyID  of the inverter*/
     unsigned char Serial[4];  /*Serial  of this app*/
     unsigned char NetID;      /* Network ID of Inverter*/
-} UnitType;
+};
 
-typedef struct {
+struct ReadRecordType {
     unsigned char source[6];      /*Read Source		*/
     unsigned char Destination[6]; /*Read Destination	*/
     unsigned char Control[2];     /*Control Data		*/
@@ -117,6 +117,6 @@ typedef struct {
     unsigned char SUSSerial[5];   /*SUS Inverter Bus ID	*/
     unsigned int Status[2];       /*Return Status		*/
     unsigned char data[255];      /*Data to be analysed	*/
-} ReadRecordType;
+};
 
 #endif

@@ -1497,22 +1497,24 @@ int main(int argc, char **argv)
         //Connect to Inverter
         BTConnection bt_conn{conf.BTAddress};
 
-        InverterCommand("init", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
-        InverterCommand("login", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
-        InverterCommand("typelabel", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
-        InverterCommand("startuptime", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
-        InverterCommand("getacvoltage", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
-        InverterCommand("getenergyproduction", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
-        InverterCommand("getspotdcpower", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
-        InverterCommand("getspotdcvoltage", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
-        InverterCommand("getspotacpower", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
-        InverterCommand("getgridfreq", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
-        InverterCommand("maxACPower", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
-        InverterCommand("maxACPowerTotal", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
-        InverterCommand("ACPowerTotal", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
-        InverterCommand("DeviceStatus", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
-        InverterCommand("getrangedata", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
-        InverterCommand("logoff", &conf, &flag, &unit, bt_conn.get_socket(), fp, archdatalist, livedatalist);
+        SessionData session_data{archdatalist, livedatalist, bt_conn};
+
+        InverterCommand("init", &conf, &flag, &unit, fp, session_data);
+        InverterCommand("login", &conf, &flag, &unit, fp, session_data);
+        InverterCommand("typelabel", &conf, &flag, &unit, fp, session_data);
+        InverterCommand("startuptime", &conf, &flag, &unit, fp, session_data);
+        InverterCommand("getacvoltage", &conf, &flag, &unit, fp, session_data);
+        InverterCommand("getenergyproduction", &conf, &flag, &unit, fp, session_data);
+        InverterCommand("getspotdcpower", &conf, &flag, &unit, fp, session_data);
+        InverterCommand("getspotdcvoltage", &conf, &flag, &unit, fp, session_data);
+        InverterCommand("getspotacpower", &conf, &flag, &unit, fp, session_data);
+        InverterCommand("getgridfreq", &conf, &flag, &unit, fp, session_data);
+        InverterCommand("maxACPower", &conf, &flag, &unit, fp, session_data);
+        InverterCommand("maxACPowerTotal", &conf, &flag, &unit, fp, session_data);
+        InverterCommand("ACPowerTotal", &conf, &flag, &unit, fp, session_data);
+        InverterCommand("DeviceStatus", &conf, &flag, &unit, fp, session_data);
+        InverterCommand("getrangedata", &conf, &flag, &unit, fp, session_data);
+        InverterCommand("logoff", &conf, &flag, &unit, fp, session_data);
     }
 
     if ((flag.mysql == 1) && (error == 0)) {

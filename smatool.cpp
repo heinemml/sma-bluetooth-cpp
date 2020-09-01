@@ -906,19 +906,18 @@ long ConvertStreamtoLong(const unsigned char *stream, int length, unsigned long 
 }
 
 //Convert a recieved string to a value
-float ConvertStreamtoFloat(const unsigned char *stream, int length, float *value)
+float ConvertStreamtoFloat(const unsigned char *stream, const std::size_t length)
 {
-    (*value) = 0;
-    bool nullvalue = true;
+    float value = 0.0f;
+    bool null_value = true;
 
-    for (int i = 0; i < length; i++) {
-        if (stream[i] != 0xff)  //check if all ffs which is a null value
-            nullvalue = false;
-        (*value) = (*value) + stream[i] * pow(256, i);
+    for (std::size_t i = 0; i < length; ++i) {
+        if (stream[i] != 0xff)  //at least one value needs to be non 0xff, else it's a null value
+            null_value = false;
+        value = value + static_cast<float>(stream[i] * pow(256, i));
     }
-    if (nullvalue)
-        (*value) = 0;  //Assigning null to 0 at this stage unless it breaks something
-    return (*value);
+
+    return null_value ? 0.0f : value;
 }
 
 //Convert a recieved string to a value

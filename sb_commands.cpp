@@ -631,7 +631,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                     gap = 28;
                                 for (int i = 0; i < datalen; i += gap) {
                                     auto timestamp = ConvertStreamtoTime(data + i + 4, 4);
-                                    ConvertStreamtoFloat(data + i + 8, 3, &currentpower_total);
+                                    currentpower_total = ConvertStreamtoFloat(data + i + 8, 3);
                                     return_key = -1;
                                     for (std::size_t j = 0; j < conf->num_return_keys; j++) {
                                         if (((data + i + 1)[0] == conf->returnkeylist[j].key1) && ((data + i + 2)[0] == conf->returnkeylist[j].key2)) {
@@ -733,7 +733,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                             if (timestamp_prev == 0)
                                                 timestamp_prev = timestamp - 300;
 
-                                            ConvertStreamtoFloat(datarecord + 4, 8, &gtotal);
+                                            gtotal = ConvertStreamtoFloat(datarecord + 4, 8);
                                             if (archdatalist.empty())
                                                 ptotal = gtotal;
 
@@ -804,7 +804,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                     gap = 28;
                                 for (int i = 0; i < datalen; i += gap) {
                                     auto timestamp = ConvertStreamtoTime(data + i + 4, 4);
-                                    ConvertStreamtoFloat(data + i + 8, 3, &currentpower_total);
+                                    currentpower_total = ConvertStreamtoFloat(data + i + 8, 3);
                                     return_key = -1;
                                     for (std::size_t j = 0; j < conf->num_return_keys; j++) {
                                         if (((data + i + 1)[0] == conf->returnkeylist[j].key1) && ((data + i + 2)[0] == conf->returnkeylist[j].key2)) {
@@ -851,7 +851,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                     if (return_key >= 0) {
                                         switch (conf->returnkeylist[return_key].decimal) {
                                             case 0:
-                                                ConvertStreamtoFloat(data + i + 8, datalength, &currentpower_total);
+                                                currentpower_total = ConvertStreamtoFloat(data + i + 8, datalength);
                                                 if (currentpower_total == 0)
                                                     persistent = 1;
                                                 else
@@ -860,7 +860,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                                 UpdateLiveList(flag, unit[0], "%.0f", timestamp, conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, -1, (char *)nullptr, conf->returnkeylist[return_key].units, persistent, livedatalist);
                                                 break;
                                             case 1:
-                                                ConvertStreamtoFloat(data + i + 8, datalength, &currentpower_total);
+                                                currentpower_total = ConvertStreamtoFloat(data + i + 8, datalength);
                                                 if (currentpower_total == 0)
                                                     persistent = 1;
                                                 else
@@ -869,7 +869,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                                 UpdateLiveList(flag, unit[0], "%.1f", timestamp, conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, -1, (char *)nullptr, conf->returnkeylist[return_key].units, persistent, livedatalist);
                                                 break;
                                             case 2:
-                                                ConvertStreamtoFloat(data + i + 8, datalength, &currentpower_total);
+                                                currentpower_total = ConvertStreamtoFloat(data + i + 8, datalength);
                                                 if (currentpower_total == 0)
                                                     persistent = 1;
                                                 else
@@ -878,7 +878,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                                 UpdateLiveList(flag, unit[0], "%.2f", timestamp, conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, -1, (char *)nullptr, conf->returnkeylist[return_key].units, persistent, livedatalist);
                                                 break;
                                             case 3:
-                                                ConvertStreamtoFloat(data + i + 8, datalength, &currentpower_total);
+                                                currentpower_total = ConvertStreamtoFloat(data + i + 8, datalength);
                                                 if (currentpower_total == 0)
                                                     persistent = 1;
                                                 else
@@ -887,7 +887,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                                 UpdateLiveList(flag, unit[0], "%.3f", timestamp, conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, -1, (char *)nullptr, conf->returnkeylist[return_key].units, persistent, livedatalist);
                                                 break;
                                             case 4:
-                                                ConvertStreamtoFloat(data + i + 8, datalength, &currentpower_total);
+                                                currentpower_total = ConvertStreamtoFloat(data + i + 8, datalength);
                                                 if (currentpower_total == 0)
                                                     persistent = 1;
                                                 else

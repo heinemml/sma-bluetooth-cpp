@@ -2,12 +2,13 @@
 #define SMA_BLUETOOTH_SMATOOL_H
 
 #include <ctime>
+#include <string>
 
 unsigned char *ReadStream(ConfType *, FlagType *, ReadRecordType *, int bt_sock, unsigned char *, int *, unsigned char *, int *, unsigned char *, int, int *, int *);
 char *return_xml_data(int index);
 long ConvertStreamtoLong(const unsigned char *, std::size_t);
 float ConvertStreamtoFloat(const unsigned char *, std::size_t);
-char *ConvertStreamtoString(const unsigned char *, int);
+std::string ConvertStreamtoString(const unsigned char *, std::size_t);
 time_t ConvertStreamtoTime(const unsigned char *stream, std::size_t length);
 int ConvertStreamtoInt(const unsigned char *stream, int length);
 unsigned char conv(const char *);

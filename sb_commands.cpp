@@ -914,13 +914,12 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                                 free(datastring);
                                                 break;
 
-                                            case 99:
-                                                datastring = ConvertStreamtoString(data + i + 8, datalength);
-                                                fmt::print("{:%Y-%m-%d %H:%M:%S} {:>30s} = {:s} {:>20s}\n", *std::localtime(&timestamp), conf->returnkeylist[return_key].description, datastring, conf->returnkeylist[return_key].units);
-                                                UpdateLiveList(flag, unit[0], "%s", timestamp, conf->returnkeylist[return_key].description, -1.0, -1, datastring, conf->returnkeylist[return_key].units, conf->returnkeylist[return_key].persistent, livedatalist);
-
-                                                free(datastring);
+                                            case 99: {
+                                                auto data_string = ConvertStreamtoString(data + i + 8, datalength);
+                                                fmt::print("{:%Y-%m-%d %H:%M:%S} {:>30s} = {:s} {:>20s}\n", *std::localtime(&timestamp), conf->returnkeylist[return_key].description, data_string.c_str(), conf->returnkeylist[return_key].units);
+                                                UpdateLiveList(flag, unit[0], "%s", timestamp, conf->returnkeylist[return_key].description, -1.0, -1, data_string.c_str(), conf->returnkeylist[return_key].units, conf->returnkeylist[return_key].persistent, livedatalist);
                                                 break;
+                                            }
                                         }
                                         //       live_mysql( &conf, year, month, day, hour, minute, second, conf.Inverter, inverter_serial, returnkeylist[return_key].description, currentpower_total/returnkeylist[return_key].divisor, returnkeylist[return_key].units, debug );
                                     } else {

@@ -920,31 +920,26 @@ float ConvertStreamtoFloat(const unsigned char *stream, const std::size_t length
 }
 
 //Convert a recieved string to a value
-char *ConvertStreamtoString(const unsigned char *stream, int length)
+std::string ConvertStreamtoString(const unsigned char *stream, const std::size_t length)
 {
-    bool nullvalue = true;
 
-    auto *value = static_cast<char *>(malloc(sizeof(char) * 10 + 1));
-    int j = 0, i = 0;
-    for (; i < length; i++) {
-        if (i % 10 > j) {
-            j++;
-            value = static_cast<char *>(realloc(value, sizeof(char) * 10 * j + 1));
-        }
+    bool null_value = true;
+    std::string value;
+
+    for (std::size_t i = 0; i < length; i++) {
         if (stream[i] != 0xff)  //check if all ffs which is a null value
-            nullvalue = false;
-        if (stream[i] != 0) {
-            value[i] = stream[i];
-        }
+            null_value = false;
+
+        if (stream[i] != 0)  // drop 0s
+            value += stream[i];
     }
 
-    if (nullvalue)
-        (*value) = 0;  //Asigning null to 0 at this stage unless it breaks something
-    else
-        value[i] = 0;  //string null termination
+    if (null_value)
+        return "";
 
     return value;
 }
+
 //read return value data from init file
 ReturnType *
 InitReturnKeys(ConfType *conf)

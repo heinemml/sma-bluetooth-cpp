@@ -21,6 +21,7 @@
 #include "sma_mysql.h"
 #include "sma_struct.h"
 #include "smatool.h"
+#include "stream_handling.h"
 
 std::string debugdate()
 {

@@ -38,6 +38,7 @@
 #include "repost.h"
 #include "sb_commands.h"
 #include "sma_mysql.h"
+#include "stream_handling.h"
 
 /*
  * u16 represents an unsigned 16-bit number.  Adjust the typedef for
@@ -886,16 +887,6 @@ void SetInverterType(ConfType *conf, UnitType **unit)
     conf->MySerial[1] = rand() % 254;
     conf->MySerial[2] = rand() % 254;
     conf->MySerial[3] = rand() % 254;
-}
-
-bool IsNullValue(const unsigned char *stream, const std::size_t length)
-{
-    for (std::size_t i = 0; i < length; ++i) {
-        if (stream[i] != 0xff)  // at least one value needs to be non 0xff, else it's a null value
-            return false;
-    }
-
-    return true;
 }
 
 // Set switches to save lots of strcmps

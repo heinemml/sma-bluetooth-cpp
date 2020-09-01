@@ -1,11 +1,11 @@
 BasedOnStyle: Google
 TabWidth: 4
 IndentWidth: 4
-Standard: Auto
+Standard: c++17
 ColumnLimit: 0
 AccessModifierOffset: -4
 Cpp11BracedListStyle: true
 SpaceBeforeCpp11BracedList: false
 BreakBeforeBraces: Linux
 KeepEmptyLinesAtTheStartOfBlocks: true
-AllowShortBlocksOnASingleLine: true
+AllowShortBlocksOnASingleLine: Always

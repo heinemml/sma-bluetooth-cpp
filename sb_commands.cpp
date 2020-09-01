@@ -60,7 +60,6 @@ int UpdateLiveList(FlagType *flag, UnitType *unit, const char *format, time_t id
 
 int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock, FILE *fp, int *linenum, ArchDataList &archdatalist, LiveDataList &livedatalist)
 {
-    ssize_t read = 0;
     int cc = 0, rr = 0;
     int datalen = 0;
     int failedbluetooth = 0;
@@ -109,6 +108,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
 
     char *line = nullptr;
     std::size_t len = 0;
+    ssize_t read;
     while ((read = getline(&line, &len, fp)) != -1) {  //read line from sma.in
 
         (*linenum)++;

@@ -578,7 +578,7 @@ int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, c
     if (FD_ISSET(bt_sock, &readfds)) {                          // did we receive anything within 5 seconds
         bytes_read = recv(bt_sock, header, sizeof(header), 0);  //Get length of string
         (*rr) = 0;
-        for (size_t i = 0; i < sizeof(header); i++) {
+        for (std::size_t i = 0; i < sizeof(header); i++) {
             received[(*rr)] = header[i];
             if (flag->debug == 2)
                 fmt::print("{:02x} ", received[i]);
@@ -691,7 +691,7 @@ int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, c
                 fmt::print("\n   ");
             }
             fmt::print("\n   ");
-            size_t j = 0;
+            std::size_t j = 0;
             for (; i < bytes_read; i++) {
                 if (j % 16 == 0)
                     fmt::print("\n   {:08x}: ", j);
@@ -757,8 +757,7 @@ int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, c
 
 int select_str(char *s)
 {
-
-    for (size_t i = 0; i < sizeof(accepted_strings) / sizeof(*accepted_strings); ++i) {
+    for (std::size_t i = 0; i < sizeof(accepted_strings) / sizeof(*accepted_strings); ++i) {
         //printf( "\ni=%d accepted=%s string=%s", i, accepted_strings[i], s );
         if (!strcmp(s, accepted_strings[i])) return i;
     }
@@ -1375,7 +1374,7 @@ int ReadCommandConfig(ConfType *conf, FlagType *flag, int argc, char **argv, int
     return (0);
 }
 
-bool post_pvoutput(const std::string &batch_string, size_t batch_count, MySQLConnection &mysql_connection, const std::string &PVOutputKey, const std::string &PVOutputSid, bool debug)
+bool post_pvoutput(const std::string &batch_string, std::size_t batch_count, MySQLConnection &mysql_connection, const std::string &PVOutputKey, const std::string &PVOutputSid, bool debug)
 {
     CURL *curl = curl_easy_init();
     if (!curl)
@@ -1570,7 +1569,7 @@ int main(int argc, char **argv)
                 }
             } else {
                 std::string batch_string{};
-                size_t batch_count{0};
+                std::size_t batch_count{0};
                 while ((row = mysql_fetch_row(result.res)))  //Need to update these
                 {
                     sleep(2);

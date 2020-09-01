@@ -16,28 +16,22 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
 /* repost is a utility to check pvoutput data and repost any differences */
-#include <bluetooth/bluetooth.h>
-#include <bluetooth/rfcomm.h>
+
 #include <curl/curl.h>
-#include <sys/socket.h>
-#include <sys/types.h>
 #include <unistd.h>
 
 #include <cassert>
-#include <cmath>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
-#include <ctime>
 
 #include "sma_mysql.h"
 #include "sma_struct.h"
 
-size_t write_data(void *ptr, size_t size, size_t nmemb, void *stream)
+std::size_t write_data(void *ptr, std::size_t size, std::size_t num_blocks, void *stream)
 {
-    size_t written;
+    std::size_t written;
 
-    written = fwrite(ptr, size, nmemb, reinterpret_cast<FILE *>(stream));
+    written = fwrite(ptr, size, num_blocks, reinterpret_cast<FILE *>(stream));
     return written;
 }
 

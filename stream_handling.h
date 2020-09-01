@@ -1,6 +1,7 @@
 #ifndef SMA_BLUETOOTH_STREAM_HANDLING_H
 #define SMA_BLUETOOTH_STREAM_HANDLING_H
 
+#include <cmath>
 #include <string>
 
 inline bool IsNullValue(const unsigned char *stream, const std::size_t length)

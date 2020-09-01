@@ -12,7 +12,7 @@
 
 #include <stdexcept>
 
-BTConnection::BTConnection(std::string address, size_t num_retries) : m_address(std::move(address))
+BTConnection::BTConnection(std::string address, std::size_t num_retries) : m_address(std::move(address))
 {
     if (!Connect(num_retries))
         throw std::runtime_error(fmt::format("error connecting to {}", address));
@@ -24,7 +24,7 @@ BTConnection::~BTConnection()
         ::close(m_socket);
 }
 
-bool BTConnection::Connect(size_t num_retries)
+bool BTConnection::Connect(std::size_t num_retries)
 {
     m_socket = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM);
     if (m_socket < 0)

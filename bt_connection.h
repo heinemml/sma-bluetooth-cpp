@@ -10,7 +10,7 @@
 class BTConnection
 {
 public:
-    explicit BTConnection(std::string address, size_t num_retries = 10);
+    explicit BTConnection(std::string address, std::size_t num_retries = 10);
     ~BTConnection();
     BTConnection(const BTConnection&) = delete;
     BTConnection operator=(const BTConnection&) = delete;
@@ -18,7 +18,7 @@ public:
     [[nodiscard]] int get_socket() const { return m_socket; }
 
 private:
-    bool Connect(size_t num_retries);
+    bool Connect(std::size_t num_retries);
     int m_socket{-1};
     std::string m_address;
 };

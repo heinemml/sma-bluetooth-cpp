@@ -482,6 +482,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                 }
 
             } while (strcmp(lineread, "$END") != 0);
+
             if (flag->debug == 1) {
                 int last_decoded = 0;
                 int j = 1;

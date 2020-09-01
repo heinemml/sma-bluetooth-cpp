@@ -578,11 +578,10 @@ int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, c
     if (FD_ISSET(bt_sock, &readfds)) {                          // did we receive anything within 5 seconds
         bytes_read = recv(bt_sock, header, sizeof(header), 0);  //Get length of string
         (*rr) = 0;
-        for (std::size_t i = 0; i < sizeof(header); i++) {
-            received[(*rr)] = header[i];
+        for (const auto &c : header) {
+            received[(*rr)++] = c;
             if (flag->debug == 2)
-                fmt::print("{:02x} ", received[i]);
-            (*rr)++;
+                fmt::print("{:02x} ", c);
         }
     } else {
         if (flag->verbose == 1)

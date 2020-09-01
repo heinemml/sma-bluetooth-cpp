@@ -889,157 +889,82 @@ void SetInverterType(ConfType *conf, UnitType **unit)
     conf->MySerial[3] = rand() % 254;
 }
 
+bool IsNullValue(const unsigned char *stream, const std::size_t length)
+{
+    for (std::size_t i = 0; i < length; ++i) {
+        if (stream[i] != 0xff)  // at least one value needs to be non 0xff, else it's a null value
+            return false;
+    }
+
+    return true;
+}
+
 //Convert a recieved string to a value
 long ConvertStreamtoLong(const unsigned char *stream, const std::size_t length)
 {
-    long value = 0;
-    bool null_value = true;
+    if (IsNullValue(stream, length))
+        return 0;
 
+    long value = 0;
     for (std::size_t i = 0; i < length; ++i) {
-        if (stream[i] != 0xff)  // at least one value needs to be non 0xff, else it's a null value
-            null_value = false;
         value = value + static_cast<long>(stream[i] * pow(256, i));
     }
 
-    return null_value ? 0 : value;
+    return value;
 }
 
 //Convert a recieved string to a value
 float ConvertStreamtoFloat(const unsigned char *stream, const std::size_t length)
 {
-    float value = 0.0f;
-    bool null_value = true;
+    if (IsNullValue(stream, length))
+        return 0;
 
+    float value = 0.0f;
     for (std::size_t i = 0; i < length; ++i) {
-        if (stream[i] != 0xff)  // at least one value needs to be non 0xff, else it's a null value
-            null_value = false;
         value = value + static_cast<float>(stream[i] * pow(256, i));
     }
 
-    return null_value ? 0.0f : value;
+    return value;
 }
 
 //Convert a recieved string to a value
 std::string ConvertStreamtoString(const unsigned char *stream, const std::size_t length)
 {
+    if (IsNullValue(stream, length))
+        return "";
 
-    bool null_value = true;
     std::string value;
-
     for (std::size_t i = 0; i < length; i++) {
-        if (stream[i] != 0xff)  //check if all ffs which is a null value
-            null_value = false;
-
         if (stream[i] != 0)  // drop 0s
             value += stream[i];
     }
 
-    if (null_value)
-        return "";
-
     return value;
-}
-
-//read return value data from init file
-ReturnType *
-InitReturnKeys(ConfType *conf)
-{
-    FILE *fp;
-    char line[400];
-    ReturnType tmp;
-    ReturnType *returnkeylist;
-    int num_return_keys = 0;
-    int data_follows;
-
-    data_follows = 0;
-
-    fp = fopen(conf->File, "r");
-    if (fp == nullptr) {
-        fmt::print(stderr, "\nCouldn't open file {}", conf->File);
-        fmt::print(stderr, "\nerror={}\n", strerror(errno));
-        exit(1);
-    } else {
-        while (!feof(fp)) {
-            if (fgets(line, 400, fp) != nullptr) {  //read line from smatool.conf
-                if (line[0] != '#') {
-                    if (strncmp(line, ":unit conversions", 17) == 0)
-                        data_follows = 1;
-                    if (strncmp(line, ":end unit conversions", 21) == 0)
-                        data_follows = 0;
-                    if (data_follows == 1) {
-                        tmp.key1 = 0x0;
-                        tmp.key2 = 0x0;
-                        strcpy(tmp.description, "");  //Null out value
-                        strcpy(tmp.units, "");        //Null out value
-                        tmp.divisor = 0;
-                        tmp.decimal = 0;
-                        tmp.datalength = 0;
-                        tmp.recordgap = 0;
-                        tmp.persistent = 1;
-
-                        if (sscanf(line, R"(%x %x "%[^"]" "%[^"]" %d %d %d %d)", &tmp.key1, &tmp.key2, tmp.description, tmp.units, &tmp.decimal, &tmp.recordgap, &tmp.datalength, &tmp.persistent) == 8) {
-                            if (num_return_keys == 0)
-                                returnkeylist = (ReturnType *)malloc(sizeof(ReturnType));
-                            else
-                                returnkeylist = (ReturnType *)realloc(returnkeylist, sizeof(ReturnType) * (num_return_keys + 1));
-
-                            (returnkeylist + num_return_keys)->key1 = tmp.key1;
-                            (returnkeylist + num_return_keys)->key2 = tmp.key2;
-                            strcpy((returnkeylist + num_return_keys)->description, tmp.description);
-                            strcpy((returnkeylist + num_return_keys)->units, tmp.units);
-                            (returnkeylist + num_return_keys)->decimal = tmp.decimal;
-                            (returnkeylist + num_return_keys)->divisor = (float)pow(10, tmp.decimal);
-                            (returnkeylist + num_return_keys)->datalength = tmp.datalength;
-                            (returnkeylist + num_return_keys)->recordgap = tmp.recordgap;
-                            (returnkeylist + num_return_keys)->persistent = tmp.persistent;
-                            ++num_return_keys;
-                        } else {
-                            if (line[0] != ':') {
-                                fmt::print(stderr, "\nWarning Data Scan Failure\n {}\n", line);
-                                getchar();
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        fclose(fp);
-    }
-    conf->num_return_keys = num_return_keys;
-    conf->returnkeylist = returnkeylist;
-    return returnkeylist;
 }
 
 //Convert a recieved string to a value
-int ConvertStreamtoInt(const unsigned char *stream, int length)
+int ConvertStreamtoInt(const unsigned char *stream, const std::size_t length)
 {
-    int value = 0;
-    bool nullvalue = true;
+    if (IsNullValue(stream, length))
+        return 0;
 
-    for (int i = 0; i < length; i++) {
-        if (stream[i] != 0xff)  //check if all ffs which is a null value
-            nullvalue = false;
+    int value = 0;
+    for (std::size_t i = 0; i < length; ++i) {
         value = value + stream[i] * pow(256, i);
     }
-    if (nullvalue)
-        value = 0;  //Asigning null to 0 at this stage unless it breaks something
 
     return value;
 }
 
-time_t ConvertStreamtoTime(const unsigned char *stream, std::size_t length)
+time_t ConvertStreamtoTime(const unsigned char *stream, const std::size_t length)
 {
-    time_t value = 0;
-    bool nullvalue = true;
+    if (IsNullValue(stream, length))
+        return 0;
 
-    for (std::size_t i = 0; i < length; i++) {
-        if (stream[i] != 0xff)  //check if all ffs which is a null value
-            nullvalue = false;
+    time_t value = 0;
+    for (std::size_t i = 0; i < length; ++i) {
         value = value + stream[i] * pow(256, i);
     }
-
-    if (nullvalue)
-        value = 0;  //Asigning null to 0 at this stage unless it breaks something
 
     return value;
 }
@@ -1119,6 +1044,76 @@ ReadStream(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, int bt_so
         fmt::print("\n");
     }
     return datalist;
+}
+
+//read return value data from init file
+ReturnType *
+InitReturnKeys(ConfType *conf)
+{
+    FILE *fp;
+    char line[400];
+    ReturnType tmp;
+    ReturnType *returnkeylist;
+    int num_return_keys = 0;
+    int data_follows;
+
+    data_follows = 0;
+
+    fp = fopen(conf->File, "r");
+    if (fp == nullptr) {
+        fmt::print(stderr, "\nCouldn't open file {}", conf->File);
+        fmt::print(stderr, "\nerror={}\n", strerror(errno));
+        exit(1);
+    } else {
+        while (!feof(fp)) {
+            if (fgets(line, 400, fp) != nullptr) {  //read line from smatool.conf
+                if (line[0] != '#') {
+                    if (strncmp(line, ":unit conversions", 17) == 0)
+                        data_follows = 1;
+                    if (strncmp(line, ":end unit conversions", 21) == 0)
+                        data_follows = 0;
+                    if (data_follows == 1) {
+                        tmp.key1 = 0x0;
+                        tmp.key2 = 0x0;
+                        strcpy(tmp.description, "");  //Null out value
+                        strcpy(tmp.units, "");        //Null out value
+                        tmp.divisor = 0;
+                        tmp.decimal = 0;
+                        tmp.datalength = 0;
+                        tmp.recordgap = 0;
+                        tmp.persistent = 1;
+
+                        if (sscanf(line, R"(%x %x "%[^"]" "%[^"]" %d %d %d %d)", &tmp.key1, &tmp.key2, tmp.description, tmp.units, &tmp.decimal, &tmp.recordgap, &tmp.datalength, &tmp.persistent) == 8) {
+                            if (num_return_keys == 0)
+                                returnkeylist = (ReturnType *)malloc(sizeof(ReturnType));
+                            else
+                                returnkeylist = (ReturnType *)realloc(returnkeylist, sizeof(ReturnType) * (num_return_keys + 1));
+
+                            (returnkeylist + num_return_keys)->key1 = tmp.key1;
+                            (returnkeylist + num_return_keys)->key2 = tmp.key2;
+                            strcpy((returnkeylist + num_return_keys)->description, tmp.description);
+                            strcpy((returnkeylist + num_return_keys)->units, tmp.units);
+                            (returnkeylist + num_return_keys)->decimal = tmp.decimal;
+                            (returnkeylist + num_return_keys)->divisor = (float)pow(10, tmp.decimal);
+                            (returnkeylist + num_return_keys)->datalength = tmp.datalength;
+                            (returnkeylist + num_return_keys)->recordgap = tmp.recordgap;
+                            (returnkeylist + num_return_keys)->persistent = tmp.persistent;
+                            ++num_return_keys;
+                        } else {
+                            if (line[0] != ':') {
+                                fmt::print(stderr, "\nWarning Data Scan Failure\n {}\n", line);
+                                getchar();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        fclose(fp);
+    }
+    conf->num_return_keys = num_return_keys;
+    conf->returnkeylist = returnkeylist;
+    return returnkeylist;
 }
 
 /* Init Config to default values */

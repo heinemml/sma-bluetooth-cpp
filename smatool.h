@@ -6,11 +6,12 @@
 
 unsigned char *ReadStream(ConfType *, FlagType *, ReadRecordType *, int bt_sock, unsigned char *, int *, unsigned char *, int *, unsigned char *, int, int *, int *);
 char *return_xml_data(int index);
-long ConvertStreamtoLong(const unsigned char *, std::size_t);
-float ConvertStreamtoFloat(const unsigned char *, std::size_t);
-std::string ConvertStreamtoString(const unsigned char *, std::size_t);
+long ConvertStreamtoLong(const unsigned char *stream, std::size_t length);
+float ConvertStreamtoFloat(const unsigned char *stream, std::size_t length);
+std::string ConvertStreamtoString(const unsigned char *stream, std::size_t length);
 time_t ConvertStreamtoTime(const unsigned char *stream, std::size_t length);
-int ConvertStreamtoInt(const unsigned char *stream, int length);
+int ConvertStreamtoInt(const unsigned char *stream, std::size_t length);
+
 unsigned char conv(const char *);
 int select_str(char *s);
 int empty_read_bluetooth(FlagType *flag, ReadRecordType *readRecord, int bt_sock, int *rr, unsigned char *received, int *terminated);

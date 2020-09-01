@@ -17,6 +17,8 @@
 
 /* compile gcc -lbluetooth -lcurl -lmysqlclient -g -o smatool smatool.c */
 
+#include "smatool.h"
+
 #include <curl/curl.h>
 #include <fmt/format.h>
 #include <libxml2/libxml/parser.h>
@@ -27,12 +29,9 @@
 
 #include <cassert>
 #include <cerrno>
-#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <ctime>
-#include <string>
 
 #include "almanac.h"
 #include "bt_connection.h"
@@ -899,76 +898,6 @@ bool IsNullValue(const unsigned char *stream, const std::size_t length)
     return true;
 }
 
-//Convert a recieved string to a value
-long ConvertStreamtoLong(const unsigned char *stream, const std::size_t length)
-{
-    if (IsNullValue(stream, length))
-        return 0;
-
-    long value = 0;
-    for (std::size_t i = 0; i < length; ++i) {
-        value = value + static_cast<long>(stream[i] * pow(256, i));
-    }
-
-    return value;
-}
-
-//Convert a recieved string to a value
-float ConvertStreamtoFloat(const unsigned char *stream, const std::size_t length)
-{
-    if (IsNullValue(stream, length))
-        return 0;
-
-    float value = 0.0f;
-    for (std::size_t i = 0; i < length; ++i) {
-        value = value + static_cast<float>(stream[i] * pow(256, i));
-    }
-
-    return value;
-}
-
-//Convert a recieved string to a value
-std::string ConvertStreamtoString(const unsigned char *stream, const std::size_t length)
-{
-    if (IsNullValue(stream, length))
-        return "";
-
-    std::string value;
-    for (std::size_t i = 0; i < length; i++) {
-        if (stream[i] != 0)  // drop 0s
-            value += stream[i];
-    }
-
-    return value;
-}
-
-//Convert a recieved string to a value
-int ConvertStreamtoInt(const unsigned char *stream, const std::size_t length)
-{
-    if (IsNullValue(stream, length))
-        return 0;
-
-    int value = 0;
-    for (std::size_t i = 0; i < length; ++i) {
-        value = value + stream[i] * pow(256, i);
-    }
-
-    return value;
-}
-
-time_t ConvertStreamtoTime(const unsigned char *stream, const std::size_t length)
-{
-    if (IsNullValue(stream, length))
-        return 0;
-
-    time_t value = 0;
-    for (std::size_t i = 0; i < length; ++i) {
-        value = value + stream[i] * pow(256, i);
-    }
-
-    return value;
-}
-
 // Set switches to save lots of strcmps
 void SetSwitches(ConfType *conf, FlagType *flag)
 {
@@ -1005,7 +934,7 @@ ReadStream(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, int bt_so
     int finished_record;
     int i, j = 0;
 
-    (*togo) = ConvertStreamtoInt(stream + 43, 2);
+    (*togo) = ConvertStreamTo<int>(stream + 43, 2);
     if (flag->debug == 1) printf("togo=%d\n", (*togo));
     i = 59;  //Initial position of data stream
     (*datalen) = 0;

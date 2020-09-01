@@ -612,7 +612,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                     switch (select_str(lineread)) {
                         case 9:  // extract Time from Inverter
                         {
-                            auto timestamp = ConvertStreamtoTime(received + 66, 4);
+                            auto timestamp = ConvertStreamTo<time_t>(received + 66, 4);
                             fmt::print("Date power = {:%Y-%m-%d %H:%M:%S}\n", *std::localtime(&timestamp));
                             //currentpower = (received[72] * 256) + received[71];
                             //printf("Current power = %i Watt\n",currentpower);
@@ -630,8 +630,8 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                 if ((data + 3)[0] == 0x00)
                                     gap = 28;
                                 for (int i = 0; i < datalen; i += gap) {
-                                    auto timestamp = ConvertStreamtoTime(data + i + 4, 4);
-                                    currentpower_total = ConvertStreamtoFloat(data + i + 8, 3);
+                                    auto timestamp = ConvertStreamTo<time_t>(data + i + 4, 4);
+                                    currentpower_total = ConvertStreamTo<float>(data + i + 8, 3);
                                     return_key = -1;
                                     for (std::size_t j = 0; j < conf->num_return_keys; j++) {
                                         if (((data + i + 1)[0] == conf->returnkeylist[j].key1) && ((data + i + 2)[0] == conf->returnkeylist[j].key2)) {
@@ -676,7 +676,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                 memcpy(timestr, received + 63, 24);
                                 if (flag->debug == 1) printf("extracting timestring\n");
                                 memcpy(timeset, received + 79, 4);
-                                auto timestamp = ConvertStreamtoTime(received + 63, 4);
+                                auto timestamp = ConvertStreamTo<time_t>(received + 63, 4);
                                 /* Allow delay for inverter to be slow */
                                 if (reporttime > timestamp) {
                                     if (flag->debug == 1)
@@ -729,11 +729,11 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                                 timestamp_prev = timestamp;
                                             else
                                                 timestamp_prev = 0;
-                                            timestamp = ConvertStreamtoTime(datarecord, 4);
+                                            timestamp = ConvertStreamTo<time_t>(datarecord, 4);
                                             if (timestamp_prev == 0)
                                                 timestamp_prev = timestamp - 300;
 
-                                            gtotal = ConvertStreamtoFloat(datarecord + 4, 8);
+                                            gtotal = ConvertStreamTo<float>(datarecord + 4, 8);
                                             if (archdatalist.empty())
                                                 ptotal = gtotal;
 
@@ -803,8 +803,8 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                 if ((data + 3)[0] == 0x00)
                                     gap = 28;
                                 for (int i = 0; i < datalen; i += gap) {
-                                    auto timestamp = ConvertStreamtoTime(data + i + 4, 4);
-                                    currentpower_total = ConvertStreamtoFloat(data + i + 8, 3);
+                                    auto timestamp = ConvertStreamTo<time_t>(data + i + 4, 4);
+                                    currentpower_total = ConvertStreamTo<float>(data + i + 8, 3);
                                     return_key = -1;
                                     for (std::size_t j = 0; j < conf->num_return_keys; j++) {
                                         if (((data + i + 1)[0] == conf->returnkeylist[j].key1) && ((data + i + 2)[0] == conf->returnkeylist[j].key2)) {
@@ -840,7 +840,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                     printf("\nFailed to find key %02x:%02x", (data + 1)[0], (data + 2)[0]);
 
                                 for (int i = 0; i < datalen; i += gap) {
-                                    auto timestamp = ConvertStreamtoTime(data + i + 4, 4);
+                                    auto timestamp = ConvertStreamTo<time_t>(data + i + 4, 4);
                                     return_key = -1;
                                     for (std::size_t j = 0; j < conf->num_return_keys; j++) {
                                         if (((data + i + 1)[0] == conf->returnkeylist[j].key1) && ((data + i + 2)[0] == conf->returnkeylist[j].key2)) {
@@ -851,7 +851,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                     if (return_key >= 0) {
                                         switch (conf->returnkeylist[return_key].decimal) {
                                             case 0:
-                                                currentpower_total = ConvertStreamtoFloat(data + i + 8, datalength);
+                                                currentpower_total = ConvertStreamTo<float>(data + i + 8, datalength);
                                                 if (currentpower_total == 0)
                                                     persistent = 1;
                                                 else
@@ -860,7 +860,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                                 UpdateLiveList(flag, unit[0], "%.0f", timestamp, conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, -1, (char *)nullptr, conf->returnkeylist[return_key].units, persistent, livedatalist);
                                                 break;
                                             case 1:
-                                                currentpower_total = ConvertStreamtoFloat(data + i + 8, datalength);
+                                                currentpower_total = ConvertStreamTo<float>(data + i + 8, datalength);
                                                 if (currentpower_total == 0)
                                                     persistent = 1;
                                                 else
@@ -869,7 +869,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                                 UpdateLiveList(flag, unit[0], "%.1f", timestamp, conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, -1, (char *)nullptr, conf->returnkeylist[return_key].units, persistent, livedatalist);
                                                 break;
                                             case 2:
-                                                currentpower_total = ConvertStreamtoFloat(data + i + 8, datalength);
+                                                currentpower_total = ConvertStreamTo<float>(data + i + 8, datalength);
                                                 if (currentpower_total == 0)
                                                     persistent = 1;
                                                 else
@@ -878,7 +878,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                                 UpdateLiveList(flag, unit[0], "%.2f", timestamp, conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, -1, (char *)nullptr, conf->returnkeylist[return_key].units, persistent, livedatalist);
                                                 break;
                                             case 3:
-                                                currentpower_total = ConvertStreamtoFloat(data + i + 8, datalength);
+                                                currentpower_total = ConvertStreamTo<float>(data + i + 8, datalength);
                                                 if (currentpower_total == 0)
                                                     persistent = 1;
                                                 else
@@ -887,7 +887,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                                 UpdateLiveList(flag, unit[0], "%.3f", timestamp, conf->returnkeylist[return_key].description, currentpower_total / conf->returnkeylist[return_key].divisor, -1, (char *)nullptr, conf->returnkeylist[return_key].units, persistent, livedatalist);
                                                 break;
                                             case 4:
-                                                currentpower_total = ConvertStreamtoFloat(data + i + 8, datalength);
+                                                currentpower_total = ConvertStreamTo<float>(data + i + 8, datalength);
                                                 if (currentpower_total == 0)
                                                     persistent = 1;
                                                 else
@@ -904,7 +904,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                             }
                                             case 98:
 
-                                                index = ConvertStreamtoInt(data + i + 8, 2);
+                                                index = ConvertStreamTo<int>(data + i + 8, 2);
                                                 datastring = return_xml_data(index);
                                                 fmt::print("{:%Y-%m-%d %H:%M:%S} {:>30s} = {:s} {:>20s}\n", *std::localtime(&timestamp), conf->returnkeylist[return_key].description, datastring, conf->returnkeylist[return_key].units);
                                                 UpdateLiveList(flag, unit[0], "%s", timestamp, conf->returnkeylist[return_key].description, -1.0, -1, datastring, conf->returnkeylist[return_key].units, conf->returnkeylist[return_key].persistent, livedatalist);
@@ -915,7 +915,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                                 break;
 
                                             case 99: {
-                                                auto data_string = ConvertStreamtoString(data + i + 8, datalength);
+                                                auto data_string = ConvertStreamTo<std::string>(data + i + 8, datalength);
                                                 fmt::print("{:%Y-%m-%d %H:%M:%S} {:>30s} = {:s} {:>20s}\n", *std::localtime(&timestamp), conf->returnkeylist[return_key].description, data_string.c_str(), conf->returnkeylist[return_key].units);
                                                 UpdateLiveList(flag, unit[0], "%s", timestamp, conf->returnkeylist[return_key].description, -1.0, -1, data_string.c_str(), conf->returnkeylist[return_key].units, conf->returnkeylist[return_key].persistent, livedatalist);
                                                 break;
@@ -935,7 +935,7 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
                                 break;
                             }
                         case 31:  // LOGIN Data
-                            auto date = ConvertStreamtoTime(received + 59, 4);
+                            auto date = ConvertStreamTo<time_t>(received + 59, 4);
                             if (flag->debug == 1) fmt::print("Date power = {:%Y-%m-%d %H:%M:%S}\n", *std::localtime(&date));
                             if (flag->debug == 1) printf("extracting SUSyID=%02x:%02x\n", received[33], received[34]);
                             unit[0]->Serial[3] = received[35];

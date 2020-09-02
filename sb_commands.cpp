@@ -966,17 +966,17 @@ int ProcessCommand(ConfType *conf, FlagType *flag, UnitType **unit, int bt_sock,
  * Run a command on an inverter
  *
  */
-void InverterCommand(const char *command, ConfType *conf, FlagType *flag, UnitType **unit, FILE *fp, SessionData &session_data)
+void InverterCommand(const char *command, SessionData &session_data)
 {
-    if (fseek(fp, 0L, 0) < 0)
+    if (fseek(session_data.fp, 0L, 0) < 0)
         printf("\nError");
 
     printf("================\n");
     printf("Command: %s\n", command);
     printf("================\n");
 
-    if (auto line_num = GetLine(command, fp); line_num > 0) {
-        if (ProcessCommand(conf, flag, unit, session_data.btConnection.get_socket(), fp, &line_num, session_data.archDataList, session_data.liveDataList) < 0) {
+    if (auto line_num = GetLine(command, session_data.fp); line_num > 0) {
+        if (ProcessCommand(&session_data.conf, &session_data.flags, session_data.unit, session_data.btConnection.get_socket(), session_data.fp, &line_num, session_data.archDataList, session_data.liveDataList) < 0) {
             printf("\nError need to do something");
             getchar();
         }

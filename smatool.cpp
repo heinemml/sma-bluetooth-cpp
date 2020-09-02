@@ -1408,8 +1408,8 @@ bool post_pvoutput(const std::string &batch_string, std::size_t batch_count, MyS
 int main(int argc, char **argv)
 {
     FILE *fp;
-    ConfType conf;
-    FlagType flag;
+    ConfType conf{};
+    FlagType flag{};
     int maximumUnits = 1;
     UnitType *unit;
     unsigned char received[1024];
@@ -1497,24 +1497,24 @@ int main(int argc, char **argv)
         //Connect to Inverter
         BTConnection bt_conn{conf.BTAddress};
 
-        SessionData session_data{archdatalist, livedatalist, bt_conn};
+        SessionData session_data{archdatalist, livedatalist, bt_conn, conf, flag, &unit, fp};
 
-        InverterCommand("init", &conf, &flag, &unit, fp, session_data);
-        InverterCommand("login", &conf, &flag, &unit, fp, session_data);
-        InverterCommand("typelabel", &conf, &flag, &unit, fp, session_data);
-        InverterCommand("startuptime", &conf, &flag, &unit, fp, session_data);
-        InverterCommand("getacvoltage", &conf, &flag, &unit, fp, session_data);
-        InverterCommand("getenergyproduction", &conf, &flag, &unit, fp, session_data);
-        InverterCommand("getspotdcpower", &conf, &flag, &unit, fp, session_data);
-        InverterCommand("getspotdcvoltage", &conf, &flag, &unit, fp, session_data);
-        InverterCommand("getspotacpower", &conf, &flag, &unit, fp, session_data);
-        InverterCommand("getgridfreq", &conf, &flag, &unit, fp, session_data);
-        InverterCommand("maxACPower", &conf, &flag, &unit, fp, session_data);
-        InverterCommand("maxACPowerTotal", &conf, &flag, &unit, fp, session_data);
-        InverterCommand("ACPowerTotal", &conf, &flag, &unit, fp, session_data);
-        InverterCommand("DeviceStatus", &conf, &flag, &unit, fp, session_data);
-        InverterCommand("getrangedata", &conf, &flag, &unit, fp, session_data);
-        InverterCommand("logoff", &conf, &flag, &unit, fp, session_data);
+        InverterCommand("init", session_data);
+        InverterCommand("login", session_data);
+        InverterCommand("typelabel", session_data);
+        InverterCommand("startuptime", session_data);
+        InverterCommand("getacvoltage", session_data);
+        InverterCommand("getenergyproduction", session_data);
+        InverterCommand("getspotdcpower", session_data);
+        InverterCommand("getspotdcvoltage", session_data);
+        InverterCommand("getspotacpower", session_data);
+        InverterCommand("getgridfreq", session_data);
+        InverterCommand("maxACPower", session_data);
+        InverterCommand("maxACPowerTotal", session_data);
+        InverterCommand("ACPowerTotal", session_data);
+        InverterCommand("DeviceStatus", session_data);
+        InverterCommand("getrangedata", session_data);
+        InverterCommand("logoff", session_data);
     }
 
     if ((flag.mysql == 1) && (error == 0)) {

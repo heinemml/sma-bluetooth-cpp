@@ -14,10 +14,14 @@ struct SessionData {
     ArchDataList &archDataList;
     LiveDataList &liveDataList;
     BTConnection &btConnection;
+    ConfType &conf;
+    FlagType &flags;
+    UnitType **unit{nullptr};
+    FILE *fp{nullptr};
 };
 
 int GetLine(const char *command, FILE *fp);
 
-void InverterCommand(const char *command, ConfType *conf, FlagType *flag, UnitType **unit, FILE *fp, SessionData &session_data);
+void InverterCommand(const char *command, SessionData &session_data);
 
 #endif  //SMA_BLUETOOTH_SB_COMMANDS_H

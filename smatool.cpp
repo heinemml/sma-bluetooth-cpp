@@ -281,9 +281,8 @@ unsigned char conv(const char *nn)
     return res;
 }
 
-int check_send_error(FlagType *flag, const int *s, int *rr, unsigned char *received, int cc, unsigned char *last_sent, int *terminated, int *already_read)
+int check_send_error(FlagType *flag, const int *s, int *rr, unsigned char *received, const std::string &last_sent, int *terminated, int *already_read)
 {
-    ssize_t bytes_read;
     unsigned char buf[1024]; /*read buffer*/
     unsigned char header[3]; /*read buffer*/
     timeval tv{};
@@ -299,9 +298,11 @@ int check_send_error(FlagType *flag, const int *s, int *rr, unsigned char *recei
     select((*s) + 1, &readfds, nullptr, nullptr, &tv);
 
     (*terminated) = 0;  // Tag to tell if string has 7e termination
+
+    ssize_t result;
     // first read the header to get the record length
-    if (FD_ISSET((*s), &readfds)) {                          // did we receive anything within 5 seconds
-        bytes_read = recv((*s), header, sizeof(header), 0);  //Get length of string
+    if (FD_ISSET((*s), &readfds)) {                      // did we receive anything within 5 seconds
+        result = recv((*s), header, sizeof(header), 0);  //Get length of string
         (*rr) = 0;
         for (unsigned char c : header) {
             received[(*rr)] = c;
@@ -320,8 +321,8 @@ int check_send_error(FlagType *flag, const int *s, int *rr, unsigned char *recei
 
     auto len = (uint16_t)header[1];
 
-    if (FD_ISSET((*s), &readfds)) {                             // did we receive anything within 5 seconds
-        bytes_read = recv((*s), buf, len - sizeof(header), 0);  //Read the length specified by header
+    if (FD_ISSET((*s), &readfds)) {                         // did we receive anything within 5 seconds
+        result = recv((*s), buf, len - sizeof(header), 0);  //Read the length specified by header
     } else {
         if (flag->verbose == 1)
             fmt::print("Timeout reading bluetooth socket\n");
@@ -329,7 +330,8 @@ int check_send_error(FlagType *flag, const int *s, int *rr, unsigned char *recei
         memset(received, 0, 1024);
         return -1;
     }
-    if (bytes_read > 0) {
+    if (result > 0) {
+        auto bytes_read = static_cast<std::size_t>(result);
         if (flag->debug == 1) {
             fmt::print("\nReceiving\n");
             fmt::print("    {:08x}: .. .. .. .. .. .. .. .. .. .. .. .. ", 0);
@@ -349,7 +351,7 @@ int check_send_error(FlagType *flag, const int *s, int *rr, unsigned char *recei
             fmt::print(" rr={}", (bytes_read + (*rr)));
             fmt::print("\n\n");
         }
-        if ((cc == bytes_read) && (memcmp(received, last_sent, cc) == 0)) {
+        if ((last_sent.size() == bytes_read) && (memcmp(received, last_sent.c_str(), last_sent.size()) == 0)) {
             fmt::print(stderr, "ERROR received what we sent!");
             getchar();
             //Need to do something
@@ -549,7 +551,7 @@ int empty_read_bluetooth(FlagType *flag, ReadRecordType *readRecord, const int b
     return 0;
 }
 
-int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, const int bt_sock, int *rr, unsigned char *received, int cc, unsigned char *last_sent, int *terminated)
+int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, const int bt_sock, int *rr, unsigned char *received, const std::string &last_sent, int *terminated)
 {
     int bytes_read = 0;
     unsigned char buf[1024]; /*read buffer*/
@@ -701,7 +703,7 @@ int read_bluetooth(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, c
             fmt::print("\n\n");
         }
 
-        if ((cc == bytes_read) && (memcmp(received, last_sent, cc) == 0)) {
+        if ((last_sent.size() == bytes_read) && (memcmp(received, last_sent.c_str(), last_sent.size()) == 0)) {
             fmt::print("ERROR received what we sent!");
             getchar();
             //Need to do something
@@ -917,7 +919,7 @@ void SetSwitches(ConfType *conf, FlagType *flag)
 }
 
 unsigned char *
-ReadStream(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, int bt_sock, unsigned char *stream, int *streamlen, unsigned char *datalist, int *datalen, unsigned char *last_sent, int cc, int *terminated, int *togo)
+ReadStream(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, int bt_sock, unsigned char *stream, int *streamlen, unsigned char *datalist, int *datalen, const std::string &last_sent, int *terminated, int *togo)
 {
     int finished;
     int finished_record;
@@ -945,7 +947,7 @@ ReadStream(ConfType *conf, FlagType *flag, ReadRecordType *readRecord, int bt_so
         }
         finished_record = 0;
         if ((*terminated) == 0) {
-            if (read_bluetooth(conf, flag, readRecord, bt_sock, streamlen, stream, cc, last_sent, terminated) != 0) {
+            if (read_bluetooth(conf, flag, readRecord, bt_sock, streamlen, stream, last_sent, terminated) != 0) {
                 free(datalist);
                 datalist = nullptr;
             }

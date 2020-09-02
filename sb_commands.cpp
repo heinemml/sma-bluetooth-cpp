@@ -112,11 +112,7 @@ int ProcessCommand(SessionData &session_data, int *linenum)
     while ((read = getline(&line, &len, session_data.fp)) != -1) {  //read line from sma.in
 
         (*linenum)++;
-        auto *last_sent = (unsigned char *)malloc(sizeof(unsigned char));
-        if (last_sent == nullptr) {
-            printf("\nOut of memory\n");
-            return (-1);
-        }
+        std::string last_sent;
 
         lineread = strtok(line, " ;");
         if (lineread[0] == ':') {  //See if line is something we need to receive
@@ -172,7 +168,7 @@ int ProcessCommand(SessionData &session_data, int *linenum)
             while (!data_found) {
                 if (already_read == 0)
                     rr = 0;
-                if ((already_read == 0) && (read_bluetooth(&session_data.conf, &session_data.flags, &readRecord, session_data.btConnection.get_socket(), &rr, received, cc, last_sent, &terminated) != 0)) {
+                if ((already_read == 0) && (read_bluetooth(&session_data.conf, &session_data.flags, &readRecord, session_data.btConnection.get_socket(), &rr, received, last_sent, &terminated) != 0)) {
                     already_read = 0;
                     strcpy(lineread, "");
                     sleep(10);
@@ -205,6 +201,7 @@ int ProcessCommand(SessionData &session_data, int *linenum)
                 printf("\n\n");
             }
         }
+
         if (!strcmp(lineread, "S")) {  //See if line is something we need to send
             //Empty the receive data ready for new command
             while (((*linenum) > 22) && (empty_read_bluetooth(&session_data.flags, &readRecord, session_data.btConnection.get_socket(), &rr, received, &terminated) >= 0))
@@ -590,8 +587,7 @@ int ProcessCommand(SessionData &session_data, int *linenum)
                 printf(" rr=%d", (cc + 3));
                 printf("\n\n");
             }
-            last_sent = (unsigned char *)realloc(last_sent, sizeof(unsigned char) * (cc));
-            memcpy(last_sent, fl, cc);
+            last_sent = std::string(reinterpret_cast<const char *>(fl), cc);
             write((session_data.btConnection.get_socket()), fl, cc);
             already_read = 0;
             //check_send_error( &conf, &s, &rr, received, cc, last_sent, &terminated, &already_read );
@@ -601,7 +597,7 @@ int ProcessCommand(SessionData &session_data, int *linenum)
             if (readRecord.Status[0] == 0xe0) {
                 if (session_data.flags.debug == 1) printf("\n%s There is no data to extract, waiting", debugdate().c_str());
                 // Read the rest of the records
-                while (read_bluetooth(&session_data.conf, &session_data.flags, &readRecord, session_data.btConnection.get_socket(), &rr, received, cc, last_sent, &terminated) == 0) {
+                while (read_bluetooth(&session_data.conf, &session_data.flags, &readRecord, session_data.btConnection.get_socket(), &rr, received, last_sent, &terminated) == 0) {
                     if (session_data.flags.debug == 1) printf(".");
                 }
                 if (session_data.flags.debug == 1) printf("\n");
@@ -621,7 +617,7 @@ int ProcessCommand(SessionData &session_data, int *linenum)
                             break;
                         }
                         case 5:  // extract current power $POW
-                            if ((data = ReadStream(&session_data.conf, &session_data.flags, &readRecord, session_data.btConnection.get_socket(), received, &rr, data, &datalen, last_sent, cc, &terminated, &togo)) != nullptr) {
+                            if ((data = ReadStream(&session_data.conf, &session_data.flags, &readRecord, session_data.btConnection.get_socket(), received, &rr, data, &datalen, last_sent, &terminated, &togo)) != nullptr) {
                                 //printf( "\ndata=%02x:%02x:%02x:%02x:%02x:%02x\n", data[0], (data+1)[0], (data+2)[0], (data+3)[0], (data+4)[0], (data+5)[0] );
                                 if ((data + 3)[0] == 0x08)
                                     gap = 40;
@@ -704,7 +700,7 @@ int ProcessCommand(SessionData &session_data, int *linenum)
                             break;
 
                         case 17:  // Test data
-                            if ((data = ReadStream(&session_data.conf, &session_data.flags, &readRecord, session_data.btConnection.get_socket(), received, &rr, data, &datalen, last_sent, cc, &terminated, &togo)) != nullptr) {
+                            if ((data = ReadStream(&session_data.conf, &session_data.flags, &readRecord, session_data.btConnection.get_socket(), received, &rr, data, &datalen, last_sent, &terminated, &togo)) != nullptr) {
                                 printf("\n");
 
                                 free(data);
@@ -721,7 +717,7 @@ int ProcessCommand(SessionData &session_data, int *linenum)
                             time_t timestamp_prev = 0;
                             printf("\n");
                             while (finished != 1) {
-                                if ((data = ReadStream(&session_data.conf, &session_data.flags, &readRecord, session_data.btConnection.get_socket(), received, &rr, data, &datalen, last_sent, cc, &terminated, &togo)) != nullptr) {
+                                if ((data = ReadStream(&session_data.conf, &session_data.flags, &readRecord, session_data.btConnection.get_socket(), received, &rr, data, &datalen, last_sent, &terminated, &togo)) != nullptr) {
                                     std::size_t j = 0;
                                     for (int i = 0; i < datalen; i++) {
                                         datarecord[j] = data[i];
@@ -759,7 +755,7 @@ int ProcessCommand(SessionData &session_data, int *linenum)
                                     }
                                     if (togo == 0)
                                         finished = 1;
-                                    else if (read_bluetooth(&session_data.conf, &session_data.flags, &readRecord, session_data.btConnection.get_socket(), &rr, received, cc, last_sent, &terminated) != 0) {
+                                    else if (read_bluetooth(&session_data.conf, &session_data.flags, &readRecord, session_data.btConnection.get_socket(), &rr, received, last_sent, &terminated) != 0) {
                                         strcpy(lineread, "");
                                         sleep(10);
                                         failedbluetooth++;
@@ -794,7 +790,7 @@ int ProcessCommand(SessionData &session_data, int *linenum)
                             break;
                         case 24:  // Inverter data $INVERTERDATA
 
-                            if ((data = ReadStream(&session_data.conf, &session_data.flags, &readRecord, session_data.btConnection.get_socket(), received, &rr, data, &datalen, last_sent, cc, &terminated, &togo)) != nullptr) {
+                            if ((data = ReadStream(&session_data.conf, &session_data.flags, &readRecord, session_data.btConnection.get_socket(), received, &rr, data, &datalen, last_sent, &terminated, &togo)) != nullptr) {
                                 if (session_data.flags.debug == 1) printf("data=%02x\n", (data + 3)[0]);
                                 if ((data + 3)[0] == 0x08)
                                     gap = 40;
@@ -826,7 +822,7 @@ int ProcessCommand(SessionData &session_data, int *linenum)
                             }
                             break;
                         case 28:  // extract data $DATA
-                            if ((data = ReadStream(&session_data.conf, &session_data.flags, &readRecord, session_data.btConnection.get_socket(), received, &rr, data, &datalen, last_sent, cc, &terminated, &togo)) != nullptr) {
+                            if ((data = ReadStream(&session_data.conf, &session_data.flags, &readRecord, session_data.btConnection.get_socket(), received, &rr, data, &datalen, last_sent, &terminated, &togo)) != nullptr) {
                                 gap = 0;
                                 return_key = -1;
                                 for (std::size_t j = 0; j < session_data.conf.num_return_keys; j++) {
